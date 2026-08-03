@@ -2,8 +2,8 @@ name: Auto-update M3U and EPG
 
 on:
   schedule:
-    - cron: '0 */6 * * *'   # svakih 6 sati
-  workflow_dispatch:         # ručno pokretanje
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -27,12 +27,13 @@ jobs:
         run: python generate.py
 
       - name: Generate EPG
-        run: python generateepg.py
+        run: python generateepg.py || echo "EPG generation failed, but continuing..."
 
       - name: Commit and push updated files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vavoo_hrvatska_lista.m3u epg.xml 2>/dev/null || true
+          git add vavoo_hrvatska_lista.m3u || echo "No M3U to add"
+          git add epg.xml 2>/dev/null || echo "No EPG to add"
           git commit -m "Auto-update M3U and EPG [skip ci]" || echo "No changes to commit"
           git push
