@@ -3,13 +3,13 @@ name: Auto-update M3U and EPG
 on:
   schedule:
     - cron: '0 */6 * * *'   # svakih 6 sati
-  workflow_dispatch:         # ručno pokretanje
+  workflow_dispatch:         # omogućuje ručno pokretanje s GitHub sučelja
 
 jobs:
   update:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write        # dozvola za commit na repo
 
     steps:
       - name: Checkout repository
@@ -23,23 +23,29 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate M3U (uvijek)
+      - name: Generate M3U list (uvijek)
         run: python generate.py
 
-      - name: Generate EPG (samo u ponoć - UTC)
-        run: |
-          HOUR=$(date -u +%H)
-          if [ "$HOUR" == "00" ] || [ "$HOUR" == "0" ]; then
-            echo "🕛 Ponoć je - generiram EPG..."
-            python generateepg.py
-          else
-            echo "⏰ EPG se generira samo u ponoć (trenutni sat: $HOUR) - preskačem."
-          fi
+      # PRIVREMENO: EPG se generira uvijek (za test)
+      # Kada potvrdiš da radi, možeš vratiti uvjet (samo u ponoć)
+      - name: Generate EPG (uvijek - za test)
+        run: python generateepg.py
+
+      # KOMENTIRANA VERZIJA ZA PONOĆ (kad test prođe, otkomentiraj ovo, a gornje zakomentiraj)
+      # - name: Generate EPG (samo u ponoć UTC)
+      #   run: |
+      #     HOUR=$(date -u +%H)
+      #     if [ "$HOUR" == "00" ] || [ "$HOUR" == "0" ]; then
+      #       echo "🕛 Ponoć je - generiram EPG..."
+      #       python generateepg.py
+      #     else
+      #       echo "⏰ EPG se generira samo u ponoć (trenutni sat: $HOUR) - preskačem."
+      #     fi
 
       - name: Commit and push updated files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add vavoo_hrvatska_lista.m3u epg.xml 2>/dev/null || true
-          git commit -m "Auto-update M3U (EPG only at midnight) [skip ci]" || echo "No changes to commit"
+          git commit -m "Auto-update M3U and EPG [skip ci]" || echo "No changes to commit"
           git push
