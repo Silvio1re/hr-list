@@ -66,7 +66,10 @@ def main():
                             stream_id = extract_stream_id(url)
                             proxy_url = f"https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/{stream_id}"
                             
-                            m3u_lines.append(f'#EXTINF:-1 group-title="{group}",{clean_name}')
+                            # Kreiraj tvg-id iz naziva kanala
+                            tvg_id = clean_name.lower().replace(" ", "_").replace(".", "").replace("&", "and").replace(":", "")
+                            
+                            m3u_lines.append(f'#EXTINF:-1 tvg-id="{tvg_id}" group-title="{group}",{clean_name}')
                             m3u_lines.append(proxy_url)
                             count += 1
                     
