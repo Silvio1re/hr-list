@@ -11,8 +11,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/364529120581ea95b961ad
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2665922581e6cfc1ac66e0
 #EXTINF:-1 tvg-name="ADRIATIC SPORT 3" group-title="Balkans",ADRIATIC SPORT 3
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/274352784593dbc4bc85a4
-#EXTINF:-1 tvg-name="ALJAZEERA BALKANS" group-title="Balkans",ALJAZEERA BALKANS
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1631085200c8f39c93cf8d
 #EXTINF:-1 tvg-name="ALTERNATIVNA TV" group-title="Balkans",ALTERNATIVNA TV
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/11653634169e1078a0bc1a
 #EXTINF:-1 tvg-name="AMC" group-title="Balkans",AMC
@@ -45,6 +43,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/144185773598d4a2fc8d88
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2522975011dfdc67182360
 #EXTINF:-1 tvg-name="ARENA SPORT 2 PREMIUM" group-title="Balkans",ARENA SPORT 2 PREMIUM
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/4094009774f305288064f8
+#EXTINF:-1 tvg-name="ARENA SPORT 2 SRB" group-title="Balkans",ARENA SPORT 2 SRB
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/30865810604ac079e8f4b1
 #EXTINF:-1 tvg-name="ARENA SPORT 3" group-title="Balkans",ARENA SPORT 3
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/348129490182c69f991518
 #EXTINF:-1 tvg-name="ARENA SPORT 3 HD" group-title="Balkans",ARENA SPORT 3 HD
@@ -241,6 +241,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3171906554dcae08a32053
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/153756419891088fa34a26
 #EXTINF:-1 tvg-name="DOBRA ISLAMSKA" group-title="Balkans",DOBRA ISLAMSKA
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/956406027137e881be0d9
+#EXTINF:-1 tvg-name="DOBRA MUZICKA" group-title="Balkans",DOBRA MUZICKA
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/26415294977c79d9fdc90e
 #EXTINF:-1 tvg-name="DOBRA PLUS" group-title="Balkans",DOBRA PLUS
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1577904338e63adcf6b04a
 #EXTINF:-1 tvg-name="DOBRA SVADBA" group-title="Balkans",DOBRA SVADBA
@@ -267,6 +269,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/34982461288b5d3f7b20aa
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/39910661768f5c24261820
 #EXTINF:-1 tvg-name="ELITA8 LIVE 4" group-title="Balkans",ELITA8 LIVE 4
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/16065521440a58a46878d1
+#EXTINF:-1 tvg-name="EPIC DRAMA" group-title="Balkans",EPIC DRAMA
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/35592931699037fd525994
 #EXTINF:-1 tvg-name="EURO CINEMA 1" group-title="Balkans",EURO CINEMA 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/22330202995c8fbf76343e
 #EXTINF:-1 tvg-name="EURO CINEMA 2" group-title="Balkans",EURO CINEMA 2
@@ -953,6 +957,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1411303991eedfef95863b
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2538406656f2c8d3d720b9
 #EXTINF:-1 tvg-name="VIASAT EXPLORE" group-title="Balkans",VIASAT EXPLORE
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/22307995102b2c612a2336
+#EXTINF:-1 tvg-name="VIASAT EXPLORE" group-title="Balkans",VIASAT EXPLORE
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/425190646997f8553ad3bd
 #EXTINF:-1 tvg-name="VIASAT HISTORY" group-title="Balkans",VIASAT HISTORY
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/280957952963da455a8207
 #EXTINF:-1 tvg-name="VIASAT HISTORY" group-title="Balkans",VIASAT HISTORY
@@ -1047,6 +1053,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3227788520a40f86788103
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/184747089aa9c28996363
 #EXTINF:-1 tvg-name="CRIME+ INVESTIGATION" group-title="Croatia",CRIME+ INVESTIGATION
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1150560479cbbf0d2f6b0
+#EXTINF:-1 tvg-name="CRO MAX SELECT 3" group-title="Croatia",CRO MAX SELECT 3
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/20434979561a458e2d5455
 #EXTINF:-1 tvg-name="CRO MAX SELECT 5" group-title="Croatia",CRO MAX SELECT 5
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/413648288424dbdb46f07e
 #EXTINF:-1 tvg-name="DA VINCI" group-title="Croatia",DA VINCI
