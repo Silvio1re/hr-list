@@ -1,0 +1,35 @@
+name: Auto-generate M3U list
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # Svakih 6 sati
+  workflow_dispatch:         # Omogućuje ručno pokretanje na GitHubu
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # Dozvola za commit na repo
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run script
+        run: python generate.py
+
+      - name: Commit and push updated list
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add vavoo_hrvatska_lista.m3u
+          git commit -m "Auto-update M3U list [skip ci]" || echo "No changes to commit"
+          git push
