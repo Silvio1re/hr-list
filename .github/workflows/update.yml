@@ -3,13 +3,13 @@ name: Auto-update M3U and EPG
 on:
   schedule:
     - cron: '0 */6 * * *'   # svakih 6 sati
-  workflow_dispatch:         # omogućuje ručno pokretanje s GitHub sučelja
+  workflow_dispatch:         # ručno pokretanje
 
 jobs:
   update:
     runs-on: ubuntu-latest
     permissions:
-      contents: write        # dozvola za commit na repo
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -23,24 +23,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate M3U list (uvijek)
+      - name: Generate M3U
         run: python generate.py
 
-      # PRIVREMENO: EPG se generira uvijek (za test)
-      # Kada potvrdiš da radi, možeš vratiti uvjet (samo u ponoć)
-      - name: Generate EPG (uvijek - za test)
+      - name: Generate EPG
         run: python generateepg.py
-
-      # KOMENTIRANA VERZIJA ZA PONOĆ (kad test prođe, otkomentiraj ovo, a gornje zakomentiraj)
-      # - name: Generate EPG (samo u ponoć UTC)
-      #   run: |
-      #     HOUR=$(date -u +%H)
-      #     if [ "$HOUR" == "00" ] || [ "$HOUR" == "0" ]; then
-      #       echo "🕛 Ponoć je - generiram EPG..."
-      #       python generateepg.py
-      #     else
-      #       echo "⏰ EPG se generira samo u ponoć (trenutni sat: $HOUR) - preskačem."
-      #     fi
 
       - name: Commit and push updated files
         run: |
