@@ -23,42 +23,60 @@ def main():
     })
     
     try:
-        group_res = session.get("https://www2.vavoo.to/live2/index?output=json", timeout=20).json()
+        try:
+            group_res = session.get("https://www2.vavoo.to/live2/index?output=json", timeout=20).json()
+        except:
+            group_res = session.get("https://www.vavoo.to/live2/index?output=json", timeout=20).json()
+            
         countries = sorted(list(set([c.get("group") for c in group_res if c.get("group")])))
+        print(f"✅ Pronađene grupe: {countries}")
+        
     except Exception as e:
-        print(f"Greska: {e}")
+        print(f"❌ Greška pri dohvaćanju grupa: {e}")
         return
 
     m3u_lines = ["#EXTM3U"]
     
-    target_groups = ["Balkans", "Ex-YU", "Croatia", "Serbia", "Slovenia", "Bosnia"]
+    target_groups = ["Balkans", "Ex-YU", "Croatia", "Serbia", "Slovenia", "Bosnia", "Ex-Yugoslavia"]
     groups_to_fetch = [g for g in countries if g in target_groups]
     
     if not groups_to_fetch:
+        print("⚠️ Nema balkanskih grupa, uzimam sve grupe...")
         groups_to_fetch = countries
 
     for group in groups_to_fetch:
         cursor = 0
-        print(f"Loading: {group}...", end="", flush=True)
+        print(f"📡 Učitavam: {group}...", end="", flush=True)
         count = 0
         
         while True:
             payload = {
-                "language": "hr", "region": "HR", "catalogId": "vto-iptv", "id": "vto-iptv",
-                "adult": False, "search": "", "sort": "name", "filter": {"group": group},
-                "cursor": cursor, "clientVersion": "3.0.2"
+                "language": "de",
+                "region": "DE",
+                "catalogId": "vto-iptv",
+                "id": "vto-iptv",
+                "adult": False,
+                "search": "",
+                "sort": "name",
+                "filter": {"group": group},
+                "cursor": cursor,
+                "clientVersion": "3.0.2"
             }
 
             try:
-                r = session.post("https://vavoo.to/vto-cluster/mediahubmx-catalog.json", 
-                                 data=json.dumps(payload), timeout=30)
+                r = session.post(
+                    "https://vavoo.to/vto-cluster/mediahubmx-catalog.json",
+                    data=json.dumps(payload),
+                    timeout=30,
+                    headers={"User-Agent": "MediaHubMX/2", "Referer": "https://vavoo.tv"}
+                )
                 
                 if r.status_code == 200:
                     data = r.json()
                     items = data.get("items", [])
                     
                     for item in items:
-                        name = item.get("name", "Unknown")
+                        name = item.get("name", "Nepoznato")
                         clean_name = name.split(".")[0].strip()
                         url = item.get("url", "")
                         
@@ -66,10 +84,8 @@ def main():
                             stream_id = extract_stream_id(url)
                             proxy_url = f"https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/{stream_id}"
                             
-                            # Kreiraj tvg-id iz naziva kanala
-                            tvg_id = clean_name.lower().replace(" ", "_").replace(".", "").replace("&", "and").replace(":", "")
-                            
-                            m3u_lines.append(f'#EXTINF:-1 tvg-id="{tvg_id}" group-title="{group}",{clean_name}')
+                            # XTeVe-friendly format: tvg-name umjesto tvg-id, bez EXTVLCOPT
+                            m3u_lines.append(f'#EXTINF:-1 tvg-name="{clean_name}" group-title="{group}",{clean_name}')
                             m3u_lines.append(proxy_url)
                             count += 1
                     
@@ -77,16 +93,18 @@ def main():
                     if not cursor:
                         break
                 else:
+                    print(f" HTTP {r.status_code}", end="")
                     break
-            except Exception:
+            except Exception as e:
+                print(f" Greška: {e}", end="")
                 break
         
-        print(f" {count} channels")
+        print(f" ✅ {count} kanala")
 
     with open("vavoo_hrvatska_lista.m3u", "w", encoding="utf-8") as f:
         f.write("\n".join(m3u_lines))
         
-    print("\nDONE! List saved as 'vavoo_hrvatska_lista.m3u'")
+    print(f"\n✅ GOTOVO! Ukupno {len(m3u_lines)-1} kanala spremljeno kao 'vavoo_hrvatska_lista.m3u'")
 
 if __name__ == "__main__":
     main()
