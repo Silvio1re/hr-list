@@ -75,8 +75,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2306254838dfb577a4e689
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3549958285a9a009756186
 #EXTINF:-1 tvg-name="ARENA SPORT PREMIUM 1" group-title="Balkans",ARENA SPORT PREMIUM 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/20579120725fdf5fb31cf5
-#EXTINF:-1 tvg-name="ARENA SPORT PREMIUM 2" group-title="Balkans",ARENA SPORT PREMIUM 2
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/102401788016d39c39ab3a
 #EXTINF:-1 tvg-name="ARENA SPORT PREMIUM 3" group-title="Balkans",ARENA SPORT PREMIUM 3
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/6909032a503c702cdce
 #EXTINF:-1 tvg-name="ARENA TENIS" group-title="Balkans",ARENA TENIS
@@ -103,6 +101,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/239838413016b5dd14ff6c
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1595188996878efb3cd1f8
 #EXTINF:-1 tvg-name="BBC EARTH" group-title="Balkans",BBC EARTH
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/156139112874e38be70787
+#EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3265703113697fd73b46b4
 #EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/29429711468362269d686e
 #EXTINF:-1 tvg-name="BN" group-title="Balkans",BN
