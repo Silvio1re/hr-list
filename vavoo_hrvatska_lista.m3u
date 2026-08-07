@@ -105,6 +105,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1595188996878efb3cd1f8
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/156139112874e38be70787
 #EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3265703113697fd73b46b4
+#EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/29429711468362269d686e
 #EXTINF:-1 tvg-name="BN" group-title="Balkans",BN
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/15458637276d90d80c390b
 #EXTINF:-1 tvg-name="BN MUSIC" group-title="Balkans",BN MUSIC
@@ -631,8 +633,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1982606330ff7f8b8f5ac0
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/101941555702a0a0f22a5c
 #EXTINF:-1 tvg-name="PINK HITS" group-title="Balkans",PINK HITS
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1628980320c53e528be36c
-#EXTINF:-1 tvg-name="PINK HITS 2" group-title="Balkans",PINK HITS 2
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/163552861106f96ede3fcb
 #EXTINF:-1 tvg-name="PINK HORROR" group-title="Balkans",PINK HORROR
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1475437684814169bb278f
 #EXTINF:-1 tvg-name="PINK HORROR" group-title="Balkans",PINK HORROR
