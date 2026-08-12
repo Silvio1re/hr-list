@@ -501,8 +501,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/82230101661deab071c59
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3939261835099f25513c85
 #EXTINF:-1 tvg-name="NAT GEO WILD" group-title="Balkans",NAT GEO WILD
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/31910340748575567b2bde
-#EXTINF:-1 tvg-name="NAT GEO WILD" group-title="Balkans",NAT GEO WILD
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2112036279dc03a899227e
 #EXTINF:-1 tvg-name="NATIONAL GEO WILD HD" group-title="Balkans",NATIONAL GEO WILD HD
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/158902437515d122bf2316
 #EXTINF:-1 tvg-name="NATIONAL GEOGRAPHIC HD" group-title="Balkans",NATIONAL GEOGRAPHIC HD
@@ -753,6 +751,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/31579755025dacd5356954
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3238173013b86b91bd879e
 #EXTINF:-1 tvg-name="RTL 2" group-title="Balkans",RTL 2
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1457742501f4517c93fd5e
+#EXTINF:-1 tvg-name="RTL 2" group-title="Balkans",RTL 2
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/992994150d8682d81362f
 #EXTINF:-1 tvg-name="RTL ADRIA" group-title="Balkans",RTL ADRIA
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1016762712c0a2e57b1d20
 #EXTINF:-1 tvg-name="RTL CRIME" group-title="Balkans",RTL CRIME
@@ -879,6 +879,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/567673356b9f3f31052a3
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1300525240f974cbef6371
 #EXTINF:-1 tvg-name="STUDIO B" group-title="Balkans",STUDIO B
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/383038098665b88591aca6
+#EXTINF:-1 tvg-name="SUPER STAR TV HD" group-title="Balkans",SUPER STAR TV HD
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1773133498d35bd28acd37
 #EXTINF:-1 tvg-name="SUPER TV" group-title="Balkans",SUPER TV
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2327216525a34fcf2f636f
 #EXTINF:-1 tvg-name="TATABRADA TV" group-title="Balkans",TATABRADA TV
