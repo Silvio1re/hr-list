@@ -105,8 +105,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1595188996878efb3cd1f8
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/156139112874e38be70787
 #EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3265703113697fd73b46b4
-#EXTINF:-1 tvg-name="BHT 1" group-title="Balkans",BHT 1
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/29429711468362269d686e
 #EXTINF:-1 tvg-name="BN" group-title="Balkans",BN
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/15458637276d90d80c390b
 #EXTINF:-1 tvg-name="BN MUSIC" group-title="Balkans",BN MUSIC
@@ -121,10 +119,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1785078238931e55db2ef2
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/17914183347fc3f1efd2f3
 #EXTINF:-1 tvg-name="CARTOON NETWORK" group-title="Balkans",CARTOON NETWORK
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/42017942020eefe2518e7e
-#EXTINF:-1 tvg-name="CBS REALITY" group-title="Balkans",CBS REALITY
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2577793279893c600b0332
-#EXTINF:-1 tvg-name="CC EXTRA" group-title="Balkans",CC EXTRA
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/86776546900526f7c47cc
 #EXTINF:-1 tvg-name="CINE+ SELECT 1" group-title="Balkans",CINE+ SELECT 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2523260552ceca2601be19
 #EXTINF:-1 tvg-name="CINE+ SELECT 10" group-title="Balkans",CINE+ SELECT 10
@@ -211,8 +205,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/118465521690c4b3257097
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1473638588670a2bcc4fa4
 #EXTINF:-1 tvg-name="DA VINCI" group-title="Balkans",DA VINCI
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/23010266069e29e2f01a9b
-#EXTINF:-1 tvg-name="DA VINCI LEARNING" group-title="Balkans",DA VINCI LEARNING
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2974948443d10ce55339a
 #EXTINF:-1 tvg-name="DISCOVERY" group-title="Balkans",DISCOVERY
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/255633671928831374b49c
 #EXTINF:-1 tvg-name="DISCOVERY CHANNEL" group-title="Balkans",DISCOVERY CHANNEL
@@ -261,8 +253,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3222785648827d0a6b3249
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/467190435810ca006f8bb
 #EXTINF:-1 tvg-name="DOKU TV" group-title="Balkans",DOKU TV
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1778938190abef6584f7d4
-#EXTINF:-1 tvg-name="DOMA" group-title="Balkans",DOMA
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/103994950237ebda801bd1
 #EXTINF:-1 tvg-name="DOMA TV" group-title="Balkans",DOMA TV
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/9759774144bd7c7337cb1
 #EXTINF:-1 tvg-name="DOX TV" group-title="Balkans",DOX TV
@@ -277,8 +267,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/34982461288b5d3f7b20aa
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/39910661768f5c24261820
 #EXTINF:-1 tvg-name="ELITA8 LIVE 4" group-title="Balkans",ELITA8 LIVE 4
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/16065521440a58a46878d1
-#EXTINF:-1 tvg-name="EPIC DRAMA" group-title="Balkans",EPIC DRAMA
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/35592931699037fd525994
 #EXTINF:-1 tvg-name="EURO CINEMA 1" group-title="Balkans",EURO CINEMA 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/22330202995c8fbf76343e
 #EXTINF:-1 tvg-name="EURO CINEMA 2" group-title="Balkans",EURO CINEMA 2
@@ -317,8 +305,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/343666623953daf1d99b82
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3662258554e70aab92eeec
 #EXTINF:-1 tvg-name="FOOD NETWORK" group-title="Balkans",FOOD NETWORK
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/429517847e6a0defe7254
-#EXTINF:-1 tvg-name="FOX" group-title="Balkans",FOX
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/445499990d3e8daeb0a73
 #EXTINF:-1 tvg-name="FOX" group-title="Balkans",FOX
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3554318857049c03f49cef
 #EXTINF:-1 tvg-name="FOX" group-title="Balkans",FOX
@@ -614,8 +600,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1398596310697cbe883236
 #EXTINF:-1 tvg-name="PINK CRIME & MYSTERY" group-title="Balkans",PINK CRIME & MYSTERY
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/133454273755047198859f
 #EXTINF:-1 tvg-name="PINK EXTRA" group-title="Balkans",PINK EXTRA
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/23175817329dd595956518
-#EXTINF:-1 tvg-name="PINK EXTRA" group-title="Balkans",PINK EXTRA
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/412278124289d290429ad0
 #EXTINF:-1 tvg-name="PINK FAMILY" group-title="Balkans",PINK FAMILY
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/29693151610a1183336702
@@ -659,8 +643,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/357360011645073c60dcd8
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/24813824551dbb565879b2
 #EXTINF:-1 tvg-name="PINK LOL" group-title="Balkans",PINK LOL
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1318827435f2974d6304df
-#EXTINF:-1 tvg-name="PINK M" group-title="Balkans",PINK M
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/240799463102a0e0b5c5dd
 #EXTINF:-1 tvg-name="PINK MOVIES" group-title="Balkans",PINK MOVIES
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/34341117849ce85e326dd4
 #EXTINF:-1 tvg-name="PINK MOVIES" group-title="Balkans",PINK MOVIES
@@ -995,8 +977,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/12061961492a424b136766
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/454998951290c544693
 #EXTINF:-1 tvg-name="ZADRUGA 3" group-title="Balkans",ZADRUGA 3
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1025852629c27af6c98c43
-#EXTINF:-1 tvg-name="ZADRUGA 4" group-title="Balkans",ZADRUGA 4
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2399508677be8f76dfa794
 #EXTINF:-1 tvg-name="ZADRUGA LIVE 1" group-title="Balkans",ZADRUGA LIVE 1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1955484242ffcb9f265955
 #EXTINF:-1 tvg-name="ZADRUGA LIVE 2" group-title="Balkans",ZADRUGA LIVE 2
@@ -1067,6 +1047,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3227788520a40f86788103
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/184747089aa9c28996363
 #EXTINF:-1 tvg-name="CRIME+ INVESTIGATION" group-title="Croatia",CRIME+ INVESTIGATION
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1150560479cbbf0d2f6b0
+#EXTINF:-1 tvg-name="CRO MAX SELECT 3" group-title="Croatia",CRO MAX SELECT 3
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/20434979561a458e2d5455
 #EXTINF:-1 tvg-name="CRO MAX SELECT 5" group-title="Croatia",CRO MAX SELECT 5
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/413648288424dbdb46f07e
 #EXTINF:-1 tvg-name="DA VINCI" group-title="Croatia",DA VINCI
