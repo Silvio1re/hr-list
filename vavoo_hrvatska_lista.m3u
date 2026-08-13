@@ -51,6 +51,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/30865810604ac079e8f4b1
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/348129490182c69f991518
 #EXTINF:-1 tvg-name="ARENA SPORT 3 HD" group-title="Balkans",ARENA SPORT 3 HD
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1523289021a822c4efae57
+#EXTINF:-1 tvg-name="ARENA SPORT 3 PREMIUM" group-title="Balkans",ARENA SPORT 3 PREMIUM
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/697530411b4aac1cf6262
 #EXTINF:-1 tvg-name="ARENA SPORT 3 SRB" group-title="Balkans",ARENA SPORT 3 SRB
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/2692901127529ffba0ec61
 #EXTINF:-1 tvg-name="ARENA SPORT 4" group-title="Balkans",ARENA SPORT 4
@@ -751,6 +753,8 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/4071939005149a42114723
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3061453431a30e9a53065c
 #EXTINF:-1 tvg-name="RTCG 2" group-title="Balkans",RTCG 2
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/4057622695c3db2436550c
+#EXTINF:-1 tvg-name="RTCG SAT" group-title="Balkans",RTCG SAT
+https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/78882695294ebe4f5072c
 #EXTINF:-1 tvg-name="RTL" group-title="Balkans",RTL
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/31579755025dacd5356954
 #EXTINF:-1 tvg-name="RTL" group-title="Balkans",RTL
@@ -1063,8 +1067,6 @@ https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/3227788520a40f86788103
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/184747089aa9c28996363
 #EXTINF:-1 tvg-name="CRIME+ INVESTIGATION" group-title="Croatia",CRIME+ INVESTIGATION
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/1150560479cbbf0d2f6b0
-#EXTINF:-1 tvg-name="CRO MAX SELECT 3" group-title="Croatia",CRO MAX SELECT 3
-https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/20434979561a458e2d5455
 #EXTINF:-1 tvg-name="CRO MAX SELECT 5" group-title="Croatia",CRO MAX SELECT 5
 https://vavoo-iptv-proxy.vavoo-iptv.workers.dev/play/413648288424dbdb46f07e
 #EXTINF:-1 tvg-name="DA VINCI" group-title="Croatia",DA VINCI
