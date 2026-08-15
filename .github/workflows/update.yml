@@ -1,9 +1,9 @@
-name: Update Croatia VAVOO channels (direct API)
+name: Update Croatia VAVOO channels
 
 on:
   schedule:
-    - cron: '0 * * * *'   # svakih 15 minuta (možeš promijeniti)
-  workflow_dispatch:         # omogućava ručno pokretanje
+    - cron: '0 * * * *'   # svakih sat vremena (optimalno)
+  workflow_dispatch:       # ručno pokretanje
 
 jobs:
   update:
@@ -25,11 +25,8 @@ jobs:
         run: python fetch_croatia.py
 
       - name: Commit and push if changed
-        env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }}.git
-          git add vavoo_croatia_direct.m3u
-          git diff --staged --quiet || (git commit -m "Update Croatia VAVOO channels (direct API)" && git push)
+          git add vavoo_croatia.m3u
+          git diff --staged --quiet || (git commit -m "Update Croatia VAVOO channels" && git push)
