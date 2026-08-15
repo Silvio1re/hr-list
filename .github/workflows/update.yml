@@ -1,39 +1,32 @@
-name: Auto-update M3U and EPG
+name: Update Croatia VAVOO channels
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    - cron: '0 */5 * * *'   # svakih 5 sati
+  workflow_dispatch:         # omogućava ručno pokretanje
 
 jobs:
   update:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.x'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install requests
 
-      - name: Generate M3U
-        run: python generate.py
+      - name: Run fetch script
+        run: python fetch_croatia.py
 
-      - name: Generate EPG
-        run: python generateepg.py || echo "EPG generation failed, but continuing..."
-
-      - name: Commit and push updated files
+      - name: Commit and push if changed
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add vavoo_hrvatska_lista.m3u || echo "No M3U to add"
-          git add epg.xml 2>/dev/null || echo "No EPG to add"
-          git commit -m "Auto-update M3U and EPG [skip ci]" || echo "No changes to commit"
-          git push
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add vavoo_croatia.m3u
+          git diff --staged --quiet || (git commit -m "Update Croatia VAVOO channels" && git push)
