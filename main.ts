@@ -1,11 +1,16 @@
-// main.ts
+// main.ts – Deno proxy za Vavoo (s ispravnim routingom)
 const VAVOO_UA = "VAVOO/2.6";
 
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const target = url.searchParams.get("url");
+  
+  // Ako nema 'url' parametra, vrati upute
   if (!target) {
-    return new Response("Missing 'url' parameter", { status: 400 });
+    return new Response(
+      "Vavoo Proxy\n\nKoristi: ?url=https://vavoo.to/vavoo-iptv/play/[ID]",
+      { status: 200, headers: { "Content-Type": "text/plain" } }
+    );
   }
 
   try {
@@ -13,8 +18,10 @@ Deno.serve(async (req) => {
       headers: {
         "User-Agent": VAVOO_UA,
         "Referer": "https://vavoo.to/",
+        "Origin": "https://vavoo.to",
       },
     });
+
     return new Response(resp.body, {
       status: resp.status,
       headers: {
