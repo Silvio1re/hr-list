@@ -6,24 +6,30 @@ API_URL = "https://vavoo.to/vto-cluster/mediahubmx-catalog.json"
 PROXY_PREFIX = "https://loud-songbird-5966.fromzer00.deno.net/?url="
 OUTPUT_FILE = "vavoo_croatia.m3u"
 HEADERS = {
-    "Content-Type": "application/json",
+    "Content-Type": "application/json; charset=utf-8",
     "User-Agent": "MediaHubMX/2",
     "Accept": "application/json"
 }
 
 def fetch_catalog(group="Croatia"):
     items = []
-    cursor = None
+    cursor = 0  # mr-evil1 uses 0, not None!
     page = 0
+    max_pages = 50
 
     while True:
         page += 1
         payload = {
             "language": "de",
             "region": "AT",
-            "catalogId": "iptv",
+            "catalogId": "vto-iptv",      # <-- KEY FIX
+            "id": "vto-iptv",             # <-- KEY FIX
+            "adult": False,
+            "search": "",
+            "sort": "name",
             "filter": {"group": group},
-            "cursor": cursor
+            "cursor": cursor,
+            "clientVersion": "3.0.2"      # <-- KEY FIX
         }
 
         try:
@@ -31,18 +37,18 @@ def fetch_catalog(group="Croatia"):
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
-            print(f"❌ Greška: {e}")
+            print(f"❌ Greška na stranici {page}: {e}")
             break
 
         new_items = data.get("items", [])
         items.extend(new_items)
         cursor = data.get("nextCursor")
-        print(f"Stranica {page}: {len(new_items)} kanala")
+        print(f"Stranica {page}: {len(new_items)} kanala, nextCursor={cursor}")
 
-        if cursor is None or page >= 50:
+        if cursor is None or page >= max_pages:
             break
 
-        time.sleep(0.5)
+        time.sleep(0.05)  # mr-evil1 uses 0.05
 
     return items
 
