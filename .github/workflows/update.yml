@@ -2,7 +2,7 @@ name: Update Croatia VAVOO channels
 
 on:
   schedule:
-    - cron: '0 * * * *'   # svakih sat vremena (optimalno)
+    - cron: 'X * * * *'   # svakih sat vremena (optimalno)
   workflow_dispatch:       # ručno pokretanje
 
 jobs:
