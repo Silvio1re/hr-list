@@ -2,7 +2,7 @@ name: Update Croatia VAVOO channels (direct API)
 
 on:
   schedule:
-    - cron: '*/15 * * * *'   # svakih 15 minuta (možeš promijeniti)
+    - cron: '0 * * * *'   # svakih 15 minuta (možeš promijeniti)
   workflow_dispatch:         # omogućava ručno pokretanje
 
 jobs:
