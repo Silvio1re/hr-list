@@ -3,7 +3,7 @@ import json
 import time
 
 API_URL = "https://vavoo.to/vto-cluster/mediahubmx-catalog.json"
-PROXY_PREFIX = "https://loud-songbird-5966.fromzer00.deno.net/?url="
+PROXY_PREFIX = "https://hr-list-vh2jw8g1grvs.silvio1re.deno.net/?url="
 OUTPUT_FILE = "vavoo_croatia.m3u"
 HEADERS = {
     "Content-Type": "application/json; charset=utf-8",
