@@ -5,7 +5,7 @@ import os
 
 API_URL = "https://vavoo.to/vto-cluster/mediahubmx-catalog.json"
 PROXY_PREFIX = "https://loud-songbird-5966.fromzer00.deno.net/?url="
-OUTPUT_FILE = "vavoo_croatia_direct.m3u"
+OUTPUT_FILE = "vavoo_croatia.m3u"   # <<< IZVJEŠTAJNI NAZIV
 HEADERS = {
     "Content-Type": "application/json",
     "User-Agent": "MediaHubMX/2"
@@ -33,7 +33,7 @@ def fetch_catalog(group="Croatia"):
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
-            print(f"Greška pri dohvaćanju: {e}")
+            print(f"❌ Greška pri dohvaćanju: {e}")
             break
 
         new_items = data.get("items", [])
@@ -64,20 +64,22 @@ def generate_m3u(items):
     return "\n".join(lines)
 
 def main():
-    print("Dohvaćam Vavoo katalog...")
+    print("🔄 Dohvaćam Vavoo katalog...")
     items = fetch_catalog("Croatia")
-    print(f"Ukupno kanala: {len(items)}")
+    print(f"✅ Ukupno kanala: {len(items)}")
 
     if not items:
-        print("Nema kanala za grupu 'Croatia'.")
-        # Ako nema kanala, ne želimo prepisati postojeću listu
+        print("⚠️ Nema kanala za grupu 'Croatia'.")
+        # Stvori praznu datoteku da workflow ne pukne
+        with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+            f.write("#EXTM3U")
         return
 
     m3u = generate_m3u(items)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(m3u)
 
-    print(f"Spremljeno {len(items)} kanala u {OUTPUT_FILE}")
+    print(f"✅ Spremljeno {len(items)} kanala u {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
