@@ -1,52 +1,83 @@
 import requests
-import re
+import json
+import time
+import os
 
-SOURCE_URL = "https://raw.githubusercontent.com/mr-evil1/VAVOO/refs/heads/main/vavoo_all.m3u"
+API_URL = "https://vavoo.to/vto-cluster/mediahubmx-catalog.json"
 PROXY_PREFIX = "https://loud-songbird-5966.fromzer00.deno.net/?url="
-OUTPUT_FILE = "vavoo_croatia.m3u"
+OUTPUT_FILE = "vavoo_croatia_direct.m3u"
+HEADERS = {
+    "Content-Type": "application/json",
+    "User-Agent": "MediaHubMX/2"
+}
+
+def fetch_catalog(group="Croatia"):
+    """Dohvati sve kanale iz Vavoo kataloga za zadanu grupu."""
+    items = []
+    cursor = None
+    page = 0
+    max_pages = 50
+
+    while True:
+        page += 1
+        payload = {
+            "language": "de",
+            "region": "AT",
+            "catalogId": "iptv",
+            "filter": {"group": group} if group else {},
+            "cursor": cursor
+        }
+
+        try:
+            resp = requests.post(API_URL, json=payload, headers=HEADERS, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as e:
+            print(f"Greška pri dohvaćanju: {e}")
+            break
+
+        new_items = data.get("items", [])
+        items.extend(new_items)
+        cursor = data.get("nextCursor")
+        print(f"Stranica {page}: {len(new_items)} kanala, nextCursor={cursor}")
+
+        if cursor is None or page >= max_pages:
+            break
+
+        time.sleep(0.5)
+
+    return items
+
+def generate_m3u(items):
+    """Generira M3U listu s proxy prefixom."""
+    lines = ["#EXTM3U"]
+    for item in items:
+        name = item.get("name", "Nepoznato")
+        vavoo_id = item.get("ids", {}).get("id")
+        if not vavoo_id:
+            continue
+        group = item.get("group", "Diğer")
+        logo = item.get("logo", "")
+        stream_url = f"{PROXY_PREFIX}https://vavoo.to/vavoo-iptv/play/{vavoo_id}"
+        lines.append(f'#EXTINF:-1 tvg-id="{vavoo_id}" tvg-name="{name}" tvg-logo="{logo}" group-title="{group}",{name}')
+        lines.append(stream_url)
+    return "\n".join(lines)
 
 def main():
-    # Dohvati glavnu listu
-    resp = requests.get(SOURCE_URL, timeout=30)
-    resp.raise_for_status()
-    lines = resp.text.splitlines()
+    print("Dohvaćam Vavoo katalog...")
+    items = fetch_catalog("Croatia")
+    print(f"Ukupno kanala: {len(items)}")
 
-    output = ["#EXTM3U"]  # zaglavlje
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-        if line.startswith("#EXTINF"):
-            # Provjeri je li grupa "Croatia"
-            if 'group-title="Croatia"' in line:
-                # Pronađi sljedeću liniju koja sadrži URL
-                j = i + 1
-                while j < len(lines) and not lines[j].strip():
-                    j += 1
-                if j < len(lines):
-                    url_line = lines[j].strip()
-                    if url_line.startswith("https://vavoo.to/vavoo-iptv/play/"):
-                        # Zadrži #EXTINF liniju
-                        output.append(line)
-                        # Dodaj proxy prefix ispred URL-a
-                        output.append(f"{PROXY_PREFIX}{url_line}")
-                        i = j + 1
-                        continue
-            # Ako nije Croatia, preskoči EXTINF i pripadajući URL
-            i += 1
-            # preskoči prazne linije
-            while i < len(lines) and not lines[i].strip():
-                i += 1
-            if i < len(lines) and lines[i].strip().startswith("https://vavoo.to/"):
-                i += 1
-        else:
-            # Preskoči sve ostalo (komentare, prazne linije, itd.)
-            i += 1
+    if not items:
+        print("Nema kanala za grupu 'Croatia'.")
+        # Ako nema kanala, ne želimo prepisati postojeću listu
+        return
 
-    # Spremi rezultat
+    m3u = generate_m3u(items)
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write("\n".join(output))
+        f.write(m3u)
 
-    print(f"✅ Spremljeno {len(output)-1} kanala u {OUTPUT_FILE}")
+    print(f"Spremljeno {len(items)} kanala u {OUTPUT_FILE}")
 
 if __name__ == "__main__":
     main()
