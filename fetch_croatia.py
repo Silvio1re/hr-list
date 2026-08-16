@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Fetch Vavoo channels directly from Vavoo catalog API.
+Generates M3U playlist with EPG IDs and logos.
 """
 
 import requests
@@ -12,13 +13,12 @@ import xml.etree.ElementTree as ET
 from difflib import get_close_matches
 from urllib.parse import urlparse, parse_qs
 
-# Configuration
+# ---------- Konfiguracija ----------
 WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
 OUTPUT_FILE = "vavoo_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
 
-# Only Croatia
 TARGET_GROUPS = ["Croatia"]
 FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Hrvatska", "Balkan"]
 
@@ -28,9 +28,10 @@ HEADERS = {
     "Content-Type": "application/json; charset=utf-8",
 }
 
+# -----------------------------------
 
 def fetch_groups():
-    """Fetch available groups from Vavoo."""
+    """Dohvati dostupne grupe s Vavoo-a."""
     for url in ["https://www2.vavoo.to/live2/index?output=json", "https://www.vavoo.to/live2/index?output=json"]:
         try:
             resp = requests.get(url, timeout=20)
@@ -44,10 +45,10 @@ def fetch_groups():
 
 
 def fetch_channels_for_group(group, session):
-    """Fetch all channels for a given group using catalog API with pagination."""
+    """Dohvati sve kanale za zadanu grupu (uz paginaciju)."""
     channels = []
     cursor = 0
-    
+
     while True:
         payload = {
             "language": "de",
@@ -69,20 +70,21 @@ def fetch_channels_for_group(group, session):
                 timeout=30,
                 headers={"Referer": "https://vavoo.tv"}
             )
-            
+
             if resp.status_code != 200:
                 break
-                
+
             data = resp.json()
             items = data.get("items", [])
             if not items:
                 break
-                
+
             for item in items:
                 name = item.get("name", "Unknown")
-                clean_name = re.sub(r"\.[a-z]{2,}$", "", name).strip()
+                # *** POPRAVAK: uklanja .c, .hr, .rs i sl. na kraju naziva ***
+                clean_name = re.sub(r"\s*\.\w+$", "", name).strip()
                 url = item.get("url", "")
-                
+
                 stream_id = extract_stream_id(url)
                 if stream_id:
                     channels.append({
@@ -92,37 +94,37 @@ def fetch_channels_for_group(group, session):
                         "logo": item.get("logo", ""),
                         "group": group
                     })
-            
+
             cursor = data.get("nextCursor")
             if not cursor:
                 break
-                
+
         except Exception as e:
-            print(f"  Error: {e}", file=sys.stderr)
+            print(f"  Greška: {e}", file=sys.stderr)
             break
-    
+
     return channels
 
 
 def extract_stream_id(url):
-    """Extract stream ID from Vavoo URL."""
+    """Izvadi stream ID iz Vavoo URL-a."""
     if not url:
         return None
-    
+
     parsed = urlparse(url)
     query_params = parse_qs(parsed.query)
     if 'stream' in query_params:
         return query_params['stream'][0]
-    
+
     match = re.search(r'/live/([^/]+)', parsed.path)
     if match:
         return match.group(1)
-    
+
     return url.split('/')[-1].split('.')[0]
 
 
 def fetch_epg_data():
-    """Fetch and parse EPG XML from iptv-epg.org."""
+    """Dohvati i parsiraj EPG XML s iptv-epg.org."""
     try:
         resp = requests.get(EPG_URL, timeout=15)
         resp.raise_for_status()
@@ -141,12 +143,12 @@ def fetch_epg_data():
                     epg_channels[no_space.lower()] = chan_id
         return epg_channels
     except Exception as e:
-        print(f"Error fetching EPG: {e}", file=sys.stderr)
+        print(f"Greška pri dohvaćanju EPG-a: {e}", file=sys.stderr)
         return {}
 
 
 def get_epg_id(channel_name, epg_data):
-    """Find EPG ID for a channel name."""
+    """Pronađi EPG ID za naziv kanala (pomoću fuzzy matchinga)."""
     if not epg_data or not channel_name:
         return None
     clean_name = re.sub(r"\s*\(.*?\)\s*", "", channel_name).strip()
@@ -164,7 +166,7 @@ def get_epg_id(channel_name, epg_data):
 
 
 def get_logo_url(channel_name, vavoo_logo):
-    """Get logo URL."""
+    """Dohvati URL logotipa (Vavoo → iptv-org → tvprofil)."""
     if vavoo_logo and vavoo_logo.startswith("http"):
         return vavoo_logo
     clean_name = re.sub(r"[^a-zA-Z0-9]", "", channel_name).lower()
@@ -174,76 +176,76 @@ def get_logo_url(channel_name, vavoo_logo):
 
 
 def build_proxy_url(stream_id):
-    """Build proxy URL using your worker."""
+    """Izgradi proxy URL s tvojim Cloudflare Workerom."""
     return f"{WORKER_BASE}{PROXY_PATH}?url=https://vavoo.to/vavoo-iptv/play/{stream_id}"
 
 
 def generate_m3u(channels, epg_data, group_name):
-    """Generate M3U playlist."""
+    """Generiraj M3U sadržaj s EPG ID-ovima i logotipima."""
     lines = ["#EXTM3U"]
     for ch in channels:
         name = ch["name"]
         stream_id = ch["id"]
         vavoo_logo = ch.get("logo", "")
-        
+
         epg_id = get_epg_id(name, epg_data)
         logo_url = get_logo_url(name, vavoo_logo)
         stream_url = build_proxy_url(stream_id)
-        
+
         tvg_id_attr = f' tvg-id="{epg_id}"' if epg_id else ""
         tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ""
         extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_logo_attr} group-title="{group_name}",{name}'
-        
+
         lines.append(extinf)
         lines.append(stream_url)
-    
+
     return "\n".join(lines)
 
 
 def main():
-    print("Fetching groups from Vavoo...", file=sys.stderr)
+    print("Dohvaćanje grupa s Vavoo-a...", file=sys.stderr)
     groups = fetch_groups()
     if not groups:
-        print("No groups found.", file=sys.stderr)
+        print("Nema dostupnih grupa.", file=sys.stderr)
         sys.exit(1)
-    
-    print(f"Available groups: {groups}", file=sys.stderr)
-    
+
+    print(f"Dostupne grupe: {groups}", file=sys.stderr)
+
     target_groups = [g for g in groups if g in TARGET_GROUPS]
     if not target_groups:
-        print("Group 'Croatia' not found, trying fallbacks...", file=sys.stderr)
+        print("Grupa 'Croatia' nije pronađena, tražim zamjenske...", file=sys.stderr)
         target_groups = [g for g in groups if g in FALLBACK_GROUPS]
-    
+
     if not target_groups:
-        print("No matching groups found.", file=sys.stderr)
+        print("Nema odgovarajuće grupe.", file=sys.stderr)
         sys.exit(1)
-    
-    print("Fetching EPG data...", file=sys.stderr)
+
+    print("Dohvaćanje EPG podataka...", file=sys.stderr)
     epg_data = fetch_epg_data()
-    
+
     session = requests.Session()
     session.headers.update(HEADERS)
-    
+
     all_channels = []
     for group in target_groups:
-        print(f"Fetching channels for group: {group}...", file=sys.stderr)
+        print(f"Dohvaćanje kanala za grupu: {group}...", file=sys.stderr)
         channels = fetch_channels_for_group(group, session)
-        print(f"  Found {len(channels)} channels.", file=sys.stderr)
+        print(f"  Pronađeno {len(channels)} kanala.", file=sys.stderr)
         all_channels.extend(channels)
-    
+
     if not all_channels:
-        print("No channels found.", file=sys.stderr)
+        print("Nema kanala.", file=sys.stderr)
         sys.exit(1)
-    
-    print(f"Total channels: {len(all_channels)}", file=sys.stderr)
-    
+
+    print(f"Ukupno kanala: {len(all_channels)}", file=sys.stderr)
+
     group_name = target_groups[0]
     m3u_content = generate_m3u(all_channels, epg_data, group_name)
-    
+
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(m3u_content)
-    
-    print(f"Playlist written to {OUTPUT_FILE}", file=sys.stderr)
+
+    print(f"Playlista spremljena u {OUTPUT_FILE}", file=sys.stderr)
 
 
 if __name__ == "__main__":
