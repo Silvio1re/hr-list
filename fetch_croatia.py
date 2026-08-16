@@ -30,6 +30,7 @@ HEADERS = {
 
 # -----------------------------------
 
+
 def fetch_groups():
     """Dohvati dostupne grupe s Vavoo-a."""
     for url in ["https://www2.vavoo.to/live2/index?output=json", "https://www.vavoo.to/live2/index?output=json"]:
@@ -81,7 +82,7 @@ def fetch_channels_for_group(group, session):
 
             for item in items:
                 name = item.get("name", "Unknown")
-                # *** POPRAVAK: uklanja .c, .hr, .rs i sl. na kraju naziva ***
+                # Ukloni .c, .hr, .rs i sl.
                 clean_name = re.sub(r"\s*\.\w+$", "", name).strip()
                 url = item.get("url", "")
 
@@ -141,6 +142,7 @@ def fetch_epg_data():
                 if no_space != name:
                     epg_channels[no_space] = chan_id
                     epg_channels[no_space.lower()] = chan_id
+        print(f"Učitano {len(epg_channels)} EPG mapiranja.", file=sys.stderr)
         return epg_channels
     except Exception as e:
         print(f"Greška pri dohvaćanju EPG-a: {e}", file=sys.stderr)
@@ -148,30 +150,44 @@ def fetch_epg_data():
 
 
 def get_epg_id(channel_name, epg_data):
-    """Pronađi EPG ID za naziv kanala (pomoću fuzzy matchinga)."""
+    """Pronađi EPG ID za naziv kanala (fuzzy matching)."""
     if not epg_data or not channel_name:
         return None
     clean_name = re.sub(r"\s*\(.*?\)\s*", "", channel_name).strip()
+    if clean_name in epg_data:
+        return epg_data[clean_name]
     name_lower = clean_name.lower()
     if name_lower in epg_data:
         return epg_data[name_lower]
-    name_clean = re.sub(r"[^\w\s]", "", clean_name).lower()
-    if name_clean in epg_data:
-        return epg_data[name_clean]
-    if len(name_clean) >= 3:
-        matches = get_close_matches(name_clean, epg_data.keys(), n=1, cutoff=0.7)
+    no_space = re.sub(r"\s+", "", clean_name)
+    if no_space in epg_data:
+        return epg_data[no_space]
+    if no_space.lower() in epg_data:
+        return epg_data[no_space.lower()]
+    if len(name_lower) >= 3:
+        matches = get_close_matches(name_lower, epg_data.keys(), n=1, cutoff=0.7)
         if matches:
             return epg_data[matches[0]]
     return None
 
 
 def get_logo_url(channel_name, vavoo_logo):
-    """Dohvati URL logotipa (Vavoo → iptv-org → tvprofil)."""
+    """
+    Dohvati URL logotipa.
+    Prioritet: Vavoo (samo ako nije logo.huhu.to) → iptv-org → tvprofil
+    """
+    # Probaj Vavoo logo, ali preskoči logo.huhu.to (ne radi)
     if vavoo_logo and vavoo_logo.startswith("http"):
-        return vavoo_logo
+        if "logo.huhu.to" not in vavoo_logo:
+            return vavoo_logo
+        # else: preskačemo, idemo dalje
+
+    # Ako nema Vavoo loga ili je logo.huhu.to, koristi iptv-org
     clean_name = re.sub(r"[^a-zA-Z0-9]", "", channel_name).lower()
     if clean_name:
         return f"https://iptv-org.github.io/iptv-org/logos/{clean_name}.png"
+
+    # Fallback na tvprofil (ako baš ništa)
     return ""
 
 
@@ -188,13 +204,16 @@ def generate_m3u(channels, epg_data, group_name):
         stream_id = ch["id"]
         vavoo_logo = ch.get("logo", "")
 
-        epg_id = get_epg_id(name, epg_data)
-        logo_url = get_logo_url(name, vavoo_logo)
+        epg_id = get_epg_id(name, epg_data) or ""
+        logo_url = get_logo_url(name, vavoo_logo) or ""
         stream_url = build_proxy_url(stream_id)
 
-        tvg_id_attr = f' tvg-id="{epg_id}"' if epg_id else ""
-        tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ""
-        extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_logo_attr} group-title="{group_name}",{name}'
+        tvg_id_attr = f' tvg-id="{epg_id}"' if epg_id else ' tvg-id=""'
+        tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ' tvg-logo=""'
+        tvg_name_attr = f' tvg-name="{name}"'
+        group_attr = f' group-title="{group_name}"'
+
+        extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_name_attr}{tvg_logo_attr}{group_attr},{name}'
 
         lines.append(extinf)
         lines.append(stream_url)
