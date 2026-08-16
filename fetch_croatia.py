@@ -94,7 +94,7 @@ def fetch_channels_for_group(group, session):
                         "url": url,
                         "logo": item.get("logo", ""),
                         "group": group,
-                        "tvg_id": f"{clean_name}.hr"  # Dodaj .hr za EPG/logo
+                        "tvg_id": f"{clean_name}.hr"
                     })
 
             cursor = data.get("nextCursor")
@@ -176,8 +176,21 @@ def fetch_logos():
         return {}
 
 
+def normalize_tvg_id(tvg_id):
+    """Ukloni razmake iz tvg-id-a (npr. ARENA SPORT 1.hr -> ArenaSport1.hr)"""
+    if not tvg_id:
+        return tvg_id
+    # Ukloni .hr, .rs itd. za normalizaciju
+    base = re.sub(r'\.(hr|rs|si|ba|me|mk|al|it|de)$', '', tvg_id, flags=re.IGNORECASE)
+    # Ukloni razmake i pretvori u CamelCase
+    parts = base.lower().split()
+    camel = ''.join([p.capitalize() for p in parts])
+    # Vrati s .hr na kraju
+    return f"{camel}.hr"
+
+
 def get_epg_id(channel_name, epg_data):
-    """Pronađi EPG ID za naziv kanala (fuzzy matching)."""
+    """Pronađi EPG ID za naziv kanala."""
     if not epg_data or not channel_name:
         return None
     clean_name = re.sub(r"\s*\(.*?\)\s*", "", channel_name).strip()
@@ -201,30 +214,32 @@ def get_epg_id(channel_name, epg_data):
 def get_logo_url(tvg_id, channel_name, vavoo_logo, logo_map):
     """
     Dohvati URL logotipa.
-    Prioritet: tvg-id (s .hr) → Naziv kanala → Vavoo logo → prazno
+    Prioritet: Normalizirani tvg-id → Originalni tvg-id → Naziv kanala → Vavoo logo
     """
-    # 1. Probaj po tvg-id (npr. "ArenaSport2.hr")
+    # Normaliziraj tvg-id (ukloni razmake)
+    normalized_tvg = normalize_tvg_id(tvg_id) if tvg_id else ""
+
+    # 1. Probaj po normaliziranom tvg-id-u (npr. "ArenaSport1.hr")
+    if normalized_tvg and normalized_tvg in logo_map:
+        return logo_map[normalized_tvg]
+    if normalized_tvg and normalized_tvg.lower() in logo_map:
+        return logo_map[normalized_tvg.lower()]
+
+    # 2. Probaj po originalnom tvg-id-u
     if tvg_id and tvg_id in logo_map:
         return logo_map[tvg_id]
     if tvg_id and tvg_id.lower() in logo_map:
         return logo_map[tvg_id.lower()]
 
-    # 2. Probaj po nazivu kanala
-    if channel_name in logo_map:
-        return logo_map[channel_name]
-    if channel_name.lower() in logo_map:
-        return logo_map[channel_name.lower()]
-
-    # 3. Probaj bez razmaka
-    no_space = channel_name.lower().replace(" ", "")
-    if no_space in logo_map:
-        return logo_map[no_space]
+    # 3. Probaj po nazivu kanala (bez razmaka)
+    clean_name = channel_name.lower().replace(" ", "")
+    if clean_name in logo_map:
+        return logo_map[clean_name]
 
     # 4. Vavoo logo (preskoči logo.huhu.to)
     if vavoo_logo and "logo.huhu.to" not in vavoo_logo:
         return vavoo_logo
 
-    # 5. Prazno
     return ""
 
 
