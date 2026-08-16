@@ -34,7 +34,8 @@ HEADERS = {
 def normalize_key(key):
     """
     Normalizira ključ za pretraživanje:
-    - ukloni sufiks (.hr, .rs, .si, .ba, .me, .mk, .al, .it, .de, itd.)
+    - ukloni sufiks (.hr, .rs, .si, .ba, .me, .mk, .al, itd.)
+    - ukloni oznake kvalitete (HD, FHD, Hevc, 4k, itd.)
     - ukloni sve razmake
     - pretvori u mala slova
     """
@@ -42,9 +43,14 @@ def normalize_key(key):
         return key
     # Ukloni .hr, .rs, .si, itd. na kraju (2-3 slova)
     cleaned = re.sub(r'\.(hr|rs|si|ba|me|mk|al|it|de|at|ch|hu|ro|bg|gr|tr|ru|pl|cz|sk|fr|es|pt|nl|be|no|se|dk|fi|ie|gb|us|ca|au|nz|za|il|sa|ae|in|cn|jp|kr|tw|hk|sg|my|id|ph|th|vn|pk|bd|eg|ma|tn|dz|ng|ke|gh|za|br|ar|cl|co|pe|mx|uy|py|bo|ec|ve|pa|cr|gt|hn|sv|ni|do|pr|jm|tt|bb|bs|bm|ky|vg|tc|ai|ag|gd|kn|lc|vc|dm|ms|mp|gu|as|pw|fm|mh|vu|sb|fj|to|ws|pg|tl|kh|la|mm|np|lk|mv|bt|mn|kg|uz|tm|az|ge|am|ir|iq|sy|lb|jo|kw|qa|bh|om|ye|ps)$', '', key, flags=re.IGNORECASE)
-    # Ukloni sve razmake i pretvori u mala slova
-    return re.sub(r'\s+', '', cleaned).lower()
-
+    # Ukloni oznake kvalitete
+    cleaned = re.sub(r'\s*(hd|fhd|uhd|hevc|4k|fullhd|1080p|720p)\s*', '', cleaned, flags=re.IGNORECASE)
+    # Ukloni sve razmake i pretvori u mala slova, ali zadrži slova i brojke (zamijeni ostalo sa -)
+    cleaned = re.sub(r'[^a-z0-9]', '-', cleaned.lower())
+    # Ukloni višestruke crtice
+    cleaned = re.sub(r'-+', '-', cleaned)
+    # Ukloni crtice s krajeva
+    return cleaned.strip('-')
 
 def fetch_groups():
     """Dohvati dostupne grupe s Vavoo-a."""
@@ -164,22 +170,22 @@ def fetch_epg_data():
         return {}
 
 
-def fetch_local_logos():
-    """Učitaj logotipe iz lokalnog logos.json i normaliziraj ključeve."""
+def fetch_logos_from_github():
+    """Dohvati logotipe direktno s GitHub-a (main grana) i normaliziraj ključeve."""
     try:
-        with open('logos.json', 'r', encoding='utf-8') as f:
-            raw = json.load(f)
-        # Normaliziraj sve ključeve i dodaj ih u mapu
+        resp = requests.get(LOGOS_URL, timeout=15)
+        resp.raise_for_status()
+        raw = resp.json()
         normalized = {}
         for key, value in raw.items():
             normalized[key] = value  # zadrži originalni ključ
             norm_key = normalize_key(key)
             if norm_key and norm_key not in normalized:
                 normalized[norm_key] = value
-        print(f"Učitano {len(normalized)} logotipa iz logos.json.", file=sys.stderr)
+        print(f"✅ Učitano {len(normalized)} logotipa s GitHub-a.", file=sys.stderr)
         return normalized
-    except FileNotFoundError:
-        print("logos.json nije pronađen.", file=sys.stderr)
+    except Exception as e:
+        print(f"❌ Greška pri dohvaćanju logotipa s GitHub-a: {e}", file=sys.stderr)
         return {}
 
 
@@ -286,8 +292,8 @@ def main():
     print("Dohvaćanje EPG podataka...", file=sys.stderr)
     epg_data = fetch_epg_data()
 
-    print("Dohvaćanje logotipa...", file=sys.stderr)
-    logo_map = fetch_local_logos()
+    print("Dohvaćanje logotipa s GitHub-a...", file=sys.stderr)
+    logo_map = fetch_logos_from_github()
 
     session = requests.Session()
     session.headers.update(HEADERS)
