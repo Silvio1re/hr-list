@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Fetch Vavoo channels directly from Vavoo catalog API.
-Generates M3U playlist with EPG IDs and logos (from IPTV-org).
+Generates M3U playlist with EPG IDs and logos (from GitHub).
 """
 
 import requests
@@ -18,6 +18,7 @@ WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
 OUTPUT_FILE = "vavoo_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
+LOGOS_URL = "https://raw.githubusercontent.com/Silvio1re/hr-list/main/logos.json"
 
 TARGET_GROUPS = ["Croatia"]
 FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Hrvatska", "Balkan"]
@@ -26,13 +27,6 @@ HEADERS = {
     "User-Agent": "MediaHubMX/2",
     "Accept": "application/json",
     "Content-Type": "application/json; charset=utf-8",
-}
-
-# ---------- Ručno mapiranje logotipa (za kanale koje IPTV-org nema) ----------
-MANUAL_LOGOS = {
-    # Dodaj ovdje kanale koji nemaju logo u IPTV-org bazi
-    # "ARENA SPORT 1": "https://i.imgur.com/xxxxx.png",
-    # "ARENA SPORT 2": "https://i.imgur.com/yyyyy.png",
 }
 
 # -----------------------------------
@@ -155,37 +149,31 @@ def fetch_epg_data():
         return {}
 
 
-def fetch_iptv_logos():
-    """
-    Dohvati logotipe s IPTV-org API-ja (channels.json).
-    Vraća rječnik {naziv_kanala: logo_url}.
-    """
+def fetch_logos():
+    """Dohvati logotipe s GitHub-a (logos.json)."""
     try:
-        resp = requests.get("https://iptv-org.github.io/api/channels.json", timeout=15)
+        resp = requests.get(LOGOS_URL, timeout=15)
         if resp.status_code != 200:
-            print("IPTV-org API nije dostupan.", file=sys.stderr)
+            print("logos.json nije dostupan.", file=sys.stderr)
             return {}
 
-        channels = resp.json()
+        data = resp.json()
         logo_map = {}
-        for ch in channels:
-            name = ch.get("name", "")
-            logo = ch.get("logo", "")
-            if name and logo:
-                # Spremi više varijanti naziva
-                logo_map[name] = logo
-                logo_map[name.lower()] = logo
+        # logos.json je lista objekata s poljima 'channel' i 'url'
+        for entry in data:
+            channel = entry.get("channel")
+            url = entry.get("url")
+            if channel and url:
+                logo_map[channel] = url
+                logo_map[channel.lower()] = url
                 # Bez razmaka
-                no_space = name.lower().replace(" ", "")
-                logo_map[no_space] = logo
-                # Za hrvatske kanale dodaj i s prefiksom
-                if ch.get("country") == "HR":
-                    logo_map[f"HR_{name}"] = logo
-                    logo_map[f"hr_{name}"] = logo
-        print(f"Učitano {len(logo_map)} logotipa iz IPTV-org.", file=sys.stderr)
+                no_space = channel.lower().replace(" ", "")
+                logo_map[no_space] = url
+
+        print(f"Učitano {len(logo_map)} logotipa iz logos.json.", file=sys.stderr)
         return logo_map
     except Exception as e:
-        print(f"Greška pri dohvaćanju IPTV-org logotipa: {e}", file=sys.stderr)
+        print(f"Greška pri dohvaćanju logos.json: {e}", file=sys.stderr)
         return {}
 
 
@@ -211,32 +199,29 @@ def get_epg_id(channel_name, epg_data):
     return None
 
 
-def get_logo_url(channel_name, vavoo_logo, iptv_logo_map):
+def get_logo_url(channel_name, epg_id, vavoo_logo, logo_map):
     """
     Dohvati URL logotipa.
-    Prioritet: Ručno mapiranje → IPTV-org → Vavoo (ako nije logo.huhu.to) → prazno.
+    Prioritet: EPG ID → Naziv kanala → Vavoo logo → prazno
     """
-    # 1. Ručno mapiranje (za kanale koje IPTV-org nema)
-    if channel_name in MANUAL_LOGOS:
-        return MANUAL_LOGOS[channel_name]
+    # 1. Probaj po EPG ID-u (ako postoji)
+    if epg_id and epg_id in logo_map:
+        return logo_map[epg_id]
 
-    # 2. IPTV-org (najpouzdaniji)
-    if channel_name in iptv_logo_map:
-        return iptv_logo_map[channel_name]
+    # 2. Probaj po nazivu kanala
+    if channel_name in logo_map:
+        return logo_map[channel_name]
+
+    # 3. Probaj bez razmaka
     no_space = channel_name.lower().replace(" ", "")
-    if no_space in iptv_logo_map:
-        return iptv_logo_map[no_space]
-    # Probaj i s prefiksom HR_ (ako je kanal hrvatski)
-    hr_key = f"HR_{channel_name}"
-    if hr_key in iptv_logo_map:
-        return iptv_logo_map[hr_key]
+    if no_space in logo_map:
+        return logo_map[no_space]
 
-    # 3. Vavoo logo (preskoči logo.huhu.to)
-    if vavoo_logo and vavoo_logo.startswith("http"):
-        if "logo.huhu.to" not in vavoo_logo:
-            return vavoo_logo
+    # 4. Vavoo logo (preskoči logo.huhu.to)
+    if vavoo_logo and "logo.huhu.to" not in vavoo_logo:
+        return vavoo_logo
 
-    # 4. Prazno (bez logotipa)
+    # 5. Prazno
     return ""
 
 
@@ -245,7 +230,7 @@ def build_proxy_url(stream_id):
     return f"{WORKER_BASE}{PROXY_PATH}?url=https://vavoo.to/vavoo-iptv/play/{stream_id}"
 
 
-def generate_m3u(channels, epg_data, iptv_logo_map, group_name):
+def generate_m3u(channels, epg_data, logo_map, group_name):
     """Generiraj M3U sadržaj s EPG ID-ovima i logotipima."""
     lines = ["#EXTM3U"]
     for ch in channels:
@@ -254,7 +239,7 @@ def generate_m3u(channels, epg_data, iptv_logo_map, group_name):
         vavoo_logo = ch.get("logo", "")
 
         epg_id = get_epg_id(name, epg_data) or ""
-        logo_url = get_logo_url(name, vavoo_logo, iptv_logo_map) or ""
+        logo_url = get_logo_url(name, epg_id, vavoo_logo, logo_map) or ""
         stream_url = build_proxy_url(stream_id)
 
         tvg_id_attr = f' tvg-id="{epg_id}"' if epg_id else ' tvg-id=""'
@@ -291,8 +276,8 @@ def main():
     print("Dohvaćanje EPG podataka...", file=sys.stderr)
     epg_data = fetch_epg_data()
 
-    print("Dohvaćanje IPTV-org logotipa...", file=sys.stderr)
-    iptv_logo_map = fetch_iptv_logos()
+    print("Dohvaćanje logotipa...", file=sys.stderr)
+    logo_map = fetch_logos()
 
     session = requests.Session()
     session.headers.update(HEADERS)
@@ -311,7 +296,7 @@ def main():
     print(f"Ukupno kanala: {len(all_channels)}", file=sys.stderr)
 
     group_name = target_groups[0]
-    m3u_content = generate_m3u(all_channels, epg_data, iptv_logo_map, group_name)
+    m3u_content = generate_m3u(all_channels, epg_data, logo_map, group_name)
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write(m3u_content)
