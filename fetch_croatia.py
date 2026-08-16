@@ -93,7 +93,8 @@ def fetch_channels_for_group(group, session):
                         "id": stream_id,
                         "url": url,
                         "logo": item.get("logo", ""),
-                        "group": group
+                        "group": group,
+                        "tvg_id": f"{clean_name}.hr"  # Dodaj .hr za EPG/logo
                     })
 
             cursor = data.get("nextCursor")
@@ -150,7 +151,10 @@ def fetch_epg_data():
 
 
 def fetch_logos():
-    """Dohvati logotipe s GitHub-a (logos.json)."""
+    """
+    Dohvati logotipe s GitHub-a (logos.json).
+    Vraća rječnik {channel: logo_url}.
+    """
     try:
         resp = requests.get(LOGOS_URL, timeout=15)
         if resp.status_code != 200:
@@ -159,17 +163,12 @@ def fetch_logos():
 
         data = resp.json()
         logo_map = {}
-        # logos.json je lista objekata s poljima 'channel' i 'url'
         for entry in data:
             channel = entry.get("channel")
             url = entry.get("url")
             if channel and url:
                 logo_map[channel] = url
                 logo_map[channel.lower()] = url
-                # Bez razmaka
-                no_space = channel.lower().replace(" ", "")
-                logo_map[no_space] = url
-
         print(f"Učitano {len(logo_map)} logotipa iz logos.json.", file=sys.stderr)
         return logo_map
     except Exception as e:
@@ -199,18 +198,22 @@ def get_epg_id(channel_name, epg_data):
     return None
 
 
-def get_logo_url(channel_name, epg_id, vavoo_logo, logo_map):
+def get_logo_url(tvg_id, channel_name, vavoo_logo, logo_map):
     """
     Dohvati URL logotipa.
-    Prioritet: EPG ID → Naziv kanala → Vavoo logo → prazno
+    Prioritet: tvg-id (s .hr) → Naziv kanala → Vavoo logo → prazno
     """
-    # 1. Probaj po EPG ID-u (ako postoji)
-    if epg_id and epg_id in logo_map:
-        return logo_map[epg_id]
+    # 1. Probaj po tvg-id (npr. "ArenaSport2.hr")
+    if tvg_id and tvg_id in logo_map:
+        return logo_map[tvg_id]
+    if tvg_id and tvg_id.lower() in logo_map:
+        return logo_map[tvg_id.lower()]
 
     # 2. Probaj po nazivu kanala
     if channel_name in logo_map:
         return logo_map[channel_name]
+    if channel_name.lower() in logo_map:
+        return logo_map[channel_name.lower()]
 
     # 3. Probaj bez razmaka
     no_space = channel_name.lower().replace(" ", "")
@@ -236,13 +239,14 @@ def generate_m3u(channels, epg_data, logo_map, group_name):
     for ch in channels:
         name = ch["name"]
         stream_id = ch["id"]
+        tvg_id = ch.get("tvg_id", "")
         vavoo_logo = ch.get("logo", "")
 
         epg_id = get_epg_id(name, epg_data) or ""
-        logo_url = get_logo_url(name, epg_id, vavoo_logo, logo_map) or ""
+        logo_url = get_logo_url(tvg_id, name, vavoo_logo, logo_map) or ""
         stream_url = build_proxy_url(stream_id)
 
-        tvg_id_attr = f' tvg-id="{epg_id}"' if epg_id else ' tvg-id=""'
+        tvg_id_attr = f' tvg-id="{tvg_id or epg_id}"' if (tvg_id or epg_id) else ' tvg-id=""'
         tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ' tvg-logo=""'
         tvg_name_attr = f' tvg-name="{name}"'
         group_attr = f' group-title="{group_name}"'
