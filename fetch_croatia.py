@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Fetch Vavoo channels directly from Vavoo catalog API.
-Generates M3U playlist with EPG IDs and logos (from local logos.json).
+Generates M3U playlist with EPG IDs and logos (from GitHub).
 """
 
 import requests
@@ -18,6 +18,7 @@ WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
 OUTPUT_FILE = "vavoo_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
+LOGOS_URL = "https://raw.githubusercontent.com/Silvio1re/hr-list/main/logos.json"
 
 TARGET_GROUPS = ["Croatia"]
 FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Hrvatska", "Balkan"]
@@ -28,24 +29,23 @@ HEADERS = {
     "Content-Type": "application/json; charset=utf-8",
 }
 
-# ---------- Normalizacija ----------
+# -----------------------------------
+
 def normalize_key(key):
     """
-    Normalizira ključ za mapiranje logotipa.
-    Uklanja .hr, .rs, .si, .ba, .me, .mk, .al, .it, .de itd.,
-    uklanja razmake, pretvara u mala slova.
+    Normalizira ključ za pretraživanje:
+    - ukloni sufiks (.hr, .rs, .si, .ba, .me, .mk, .al, .it, .de, itd.)
+    - ukloni sve razmake
+    - pretvori u mala slova
     """
     if not key:
         return key
-    # Ukloni sufiks (2-3 slova nakon točke) na kraju
+    # Ukloni .hr, .rs, .si, itd. na kraju (2-3 slova)
     cleaned = re.sub(r'\.(hr|rs|si|ba|me|mk|al|it|de|at|ch|hu|ro|bg|gr|tr|ru|pl|cz|sk|fr|es|pt|nl|be|no|se|dk|fi|ie|gb|us|ca|au|nz|za|il|sa|ae|in|cn|jp|kr|tw|hk|sg|my|id|ph|th|vn|pk|bd|eg|ma|tn|dz|ng|ke|gh|za|br|ar|cl|co|pe|mx|uy|py|bo|ec|ve|pa|cr|gt|hn|sv|ni|do|pr|jm|tt|bb|bs|bm|ky|vg|tc|ai|ag|gd|kn|lc|vc|dm|ms|mp|gu|as|pw|fm|mh|vu|sb|fj|to|ws|pg|tl|kh|la|mm|np|lk|mv|bt|mn|kg|uz|tm|az|ge|am|ir|iq|sy|lb|jo|kw|qa|bh|om|ye|ps)$', '', key, flags=re.IGNORECASE)
-    # Ukloni sve razmake i zamijeni ih crticama (ili ih potpuno izbaci)
-    # Da budemo sigurni, napravimo obje varijante: bez razmaka i s crticama
-    no_spaces = re.sub(r'\s+', '', cleaned).lower()
-    with_dashes = re.sub(r'\s+', '-', cleaned).lower()
-    return no_spaces, with_dashes
+    # Ukloni sve razmake i pretvori u mala slova
+    return re.sub(r'\s+', '', cleaned).lower()
 
-# ---------- Dohvaćanje grupa ----------
+
 def fetch_groups():
     """Dohvati dostupne grupe s Vavoo-a."""
     for url in ["https://www2.vavoo.to/live2/index?output=json", "https://www.vavoo.to/live2/index?output=json"]:
@@ -59,7 +59,7 @@ def fetch_groups():
             continue
     return []
 
-# ---------- Dohvaćanje kanala ----------
+
 def fetch_channels_for_group(group, session):
     """Dohvati sve kanale za zadanu grupu (uz paginaciju)."""
     channels = []
@@ -107,7 +107,8 @@ def fetch_channels_for_group(group, session):
                         "id": stream_id,
                         "url": url,
                         "logo": item.get("logo", ""),
-                        "group": group
+                        "group": group,
+                        "tvg_id": f"{clean_name}.hr"
                     })
 
             cursor = data.get("nextCursor")
@@ -119,6 +120,7 @@ def fetch_channels_for_group(group, session):
             break
 
     return channels
+
 
 def extract_stream_id(url):
     """Izvadi stream ID iz Vavoo URL-a."""
@@ -136,7 +138,7 @@ def extract_stream_id(url):
 
     return url.split('/')[-1].split('.')[0]
 
-# ---------- EPG ----------
+
 def fetch_epg_data():
     """Dohvati i parsiraj EPG XML s iptv-epg.org."""
     try:
@@ -161,55 +163,28 @@ def fetch_epg_data():
         print(f"Greška pri dohvaćanju EPG-a: {e}", file=sys.stderr)
         return {}
 
-# ---------- Logotipi iz logos.json ----------
+
 def fetch_local_logos():
     """Učitaj logotipe iz lokalnog logos.json i normaliziraj ključeve."""
     try:
         with open('logos.json', 'r', encoding='utf-8') as f:
             raw = json.load(f)
+        # Normaliziraj sve ključeve i dodaj ih u mapu
         normalized = {}
         for key, value in raw.items():
-            # Spremi originalni ključ
-            normalized[key] = value
-            # Normaliziraj ključ (bez razmaka i s crticama)
-            no_spaces, with_dashes = normalize_key(key)
-            if no_spaces and no_spaces not in normalized:
-                normalized[no_spaces] = value
-            if with_dashes and with_dashes not in normalized:
-                normalized[with_dashes] = value
+            normalized[key] = value  # zadrži originalni ključ
+            norm_key = normalize_key(key)
+            if norm_key and norm_key not in normalized:
+                normalized[norm_key] = value
         print(f"Učitano {len(normalized)} logotipa iz logos.json.", file=sys.stderr)
         return normalized
     except FileNotFoundError:
         print("logos.json nije pronađen.", file=sys.stderr)
         return {}
-    except Exception as e:
-        print(f"Greška pri učitavanju logos.json: {e}", file=sys.stderr)
-        return {}
 
-# ---------- Pronalaženje grupe ----------
-def find_group_id(channels, group_name):
-    for group in channels.get("groups", []):
-        if group.get("name") == group_name:
-            return group.get("id")
-    for group in channels.get("groups", []):
-        if group.get("name", "").lower() == group_name.lower():
-            return group.get("id")
-    return None
 
-def find_group_id_fallback(channels):
-    for grp in FALLBACK_GROUPS:
-        gid = find_group_id(channels, grp)
-        if gid is not None:
-            return gid, grp
-    return None, None
-
-def get_channels_for_group(channels, group_id):
-    if not group_id:
-        return []
-    return [ch for ch in channels.get("channels", []) if ch.get("group") == group_id]
-
-# ---------- Generiranje M3U ----------
 def get_epg_id(channel_name, epg_data):
+    """Pronađi EPG ID za naziv kanala."""
     if not epg_data or not channel_name:
         return None
     clean_name = re.sub(r"\s*\(.*?\)\s*", "", channel_name).strip()
@@ -229,24 +204,28 @@ def get_epg_id(channel_name, epg_data):
             return epg_data[matches[0]]
     return None
 
+
 def get_logo_url(tvg_id, channel_name, vavoo_logo, logo_map):
     """
     Dohvati URL logotipa.
-    Prioritet: normalizirani tvg-id -> normalizirani naziv -> Vavoo logo
+    Prioritet: Normalizirani tvg-id → Normalizirani naziv kanala → Vavoo logo
     """
-    # 1. Probaj po normaliziranom tvg-id-u
+    # 1. Probaj po tvg-id (normaliziranom)
     if tvg_id:
-        no_spaces, with_dashes = normalize_key(tvg_id)
-        for candidate in (tvg_id, no_spaces, with_dashes):
-            if candidate and candidate in logo_map:
-                return logo_map[candidate]
+        norm_tvg = normalize_key(tvg_id)
+        if norm_tvg in logo_map:
+            return logo_map[norm_tvg]
+        # Probaj i originalni tvg-id (ako je točan)
+        if tvg_id in logo_map:
+            return logo_map[tvg_id]
     
-    # 2. Probaj po normaliziranom nazivu kanala
+    # 2. Probaj po nazivu kanala (normaliziranom)
     if channel_name:
-        no_spaces, with_dashes = normalize_key(channel_name)
-        for candidate in (channel_name, no_spaces, with_dashes):
-            if candidate and candidate in logo_map:
-                return logo_map[candidate]
+        norm_name = normalize_key(channel_name)
+        if norm_name in logo_map:
+            return logo_map[norm_name]
+        if channel_name in logo_map:
+            return logo_map[channel_name]
     
     # 3. Vavoo logo (preskoči logo.huhu.to)
     if vavoo_logo and "logo.huhu.to" not in vavoo_logo:
@@ -254,22 +233,26 @@ def get_logo_url(tvg_id, channel_name, vavoo_logo, logo_map):
     
     return ""
 
+
 def build_proxy_url(stream_id):
+    """Izgradi proxy URL s tvojim Cloudflare Workerom."""
     return f"{WORKER_BASE}{PROXY_PATH}?url=https://vavoo.to/vavoo-iptv/play/{stream_id}"
 
+
 def generate_m3u(channels, epg_data, logo_map, group_name):
+    """Generiraj M3U sadržaj s EPG ID-ovima i logotipima."""
     lines = ["#EXTM3U"]
     for ch in channels:
         name = ch["name"]
         stream_id = ch["id"]
+        tvg_id = ch.get("tvg_id", "")
         vavoo_logo = ch.get("logo", "")
-        tvg_id = f"{name}.hr"  # Vavoo catalog API ne daje tvg-id, pa ga generiramo
 
         epg_id = get_epg_id(name, epg_data) or ""
         logo_url = get_logo_url(tvg_id, name, vavoo_logo, logo_map) or ""
         stream_url = build_proxy_url(stream_id)
 
-        tvg_id_attr = f' tvg-id="{tvg_id}"' if tvg_id else ' tvg-id=""'
+        tvg_id_attr = f' tvg-id="{tvg_id or epg_id}"' if (tvg_id or epg_id) else ' tvg-id=""'
         tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ' tvg-logo=""'
         tvg_name_attr = f' tvg-name="{name}"'
         group_attr = f' group-title="{group_name}"'
@@ -281,7 +264,7 @@ def generate_m3u(channels, epg_data, logo_map, group_name):
 
     return "\n".join(lines)
 
-# ---------- MAIN ----------
+
 def main():
     print("Dohvaćanje grupa s Vavoo-a...", file=sys.stderr)
     groups = fetch_groups()
@@ -329,6 +312,7 @@ def main():
         f.write(m3u_content)
 
     print(f"Playlista spremljena u {OUTPUT_FILE}", file=sys.stderr)
+
 
 if __name__ == "__main__":
     main()
