@@ -1,3 +1,4 @@
-name = "vavoo-worker"
-main = "fetch_croatia.py"   # ako je tvoj Python Worker baš ova skripta
+name = "hr-list"
+main = "fetch_croatia.py"
 compatibility_date = "2024-12-18"
+compatibility_flags = ["python_workers"]
