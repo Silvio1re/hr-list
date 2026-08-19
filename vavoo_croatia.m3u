@@ -41,6 +41,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3608745038db6ba3236deb
 #EXTINF:-1 tvg-id="CINEMAX 2.hr" tvg-name="CINEMAX 2" tvg-logo="http://116.203.156.75/logo/177.png" group-title="Croatia",CINEMAX 2
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2696386398b455736fa420
+#EXTINF:-1 tvg-id="CINESTAR FANTASY.hr" tvg-name="CINESTAR FANTASY" tvg-logo="http://116.203.156.75/logo/cinestartv_fantasy_logo.png" group-title="Croatia",CINESTAR FANTASY
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2874980355e477b0b6daa2
 #EXTINF:-1 tvg-id="CINESTAR TV 1.hr" tvg-name="CINESTAR TV 1" tvg-logo="http://116.203.156.75/logo/cine.png" group-title="Croatia",CINESTAR TV 1
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3160661843e8281218b3ea
 #EXTINF:-1 tvg-id="CINESTAR TV 2.hr" tvg-name="CINESTAR TV 2" tvg-logo="http://nova-iptv.com/logo/Cinestar_tv2_logo.png" group-title="Croatia",CINESTAR TV 2
