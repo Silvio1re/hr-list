@@ -7,6 +7,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/119274728fd018fcdee08
 #EXTINF:-1 tvg-id="ANIMAL PLANET.hr" tvg-name="ANIMAL PLANET" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/animal_planet_poland.png" group-title="Croatia",ANIMAL PLANET
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2781367833ea3fcad1267b
+#EXTINF:-1 tvg-id="ARENA SPORT 1.hr" tvg-name="ARENA SPORT 1" tvg-logo="http://nova-iptv.com/logo/arena-sport-1.png" group-title="Croatia",ARENA SPORT 1
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2520618322956b30e9181c
 #EXTINF:-1 tvg-id="ARENA SPORT 10.hr" tvg-name="ARENA SPORT 10" tvg-logo="http://nova-iptv.com/logo/Arena_Sport_10_HR_logo.png" group-title="Croatia",ARENA SPORT 10
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/181123613384318d21e611
 #EXTINF:-1 tvg-id="ARENA SPORT 2.hr" tvg-name="ARENA SPORT 2" tvg-logo="http://nova-iptv.com/logo/arena-sport-2.png" group-title="Croatia",ARENA SPORT 2
@@ -149,6 +151,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3892802551ee9ece2232da
 #EXTINF:-1 tvg-id="N1.hr" tvg-name="N1" tvg-logo="http://nova-iptv.com/logo/n1-logo.png" group-title="Croatia",N1
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/34046621273c019fa4a765
+#EXTINF:-1 tvg-id="NAT GEO.hr" tvg-name="NAT GEO" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/49.png" group-title="Croatia",NAT GEO
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/113443872779408f3fffd0
 #EXTINF:-1 tvg-id="NAT GEO WILD.hr" tvg-name="NAT GEO WILD" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/183.png" group-title="Croatia",NAT GEO WILD
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/44950532530b6bc8b2d6a
 #EXTINF:-1 tvg-id="NICK JR.hr" tvg-name="NICK JR" tvg-logo="http://116.203.156.75/logo/nickjr.png" group-title="Croatia",NICK JR
