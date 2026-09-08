@@ -61,8 +61,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/1150560479cbbf0d2f6b0
 #EXTINF:-1 tvg-id="CRO MAX SELECT 3.hr" tvg-name="CRO MAX SELECT 3" tvg-logo="http://116.203.156.75/logo/cro_max.png" group-title="Croatia",CRO MAX SELECT 3
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/20434979561a458e2d5455
-#EXTINF:-1 tvg-id="CRO MAX SELECT 4.hr" tvg-name="CRO MAX SELECT 4" tvg-logo="" group-title="Croatia",CRO MAX SELECT 4
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3421344244d3a22e7e3df8
 #EXTINF:-1 tvg-id="DA VINCI.hr" tvg-name="DA VINCI" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/90.png" group-title="Croatia",DA VINCI
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/73167267670a70bcc398
 #EXTINF:-1 tvg-id="DISCOVERY WORLD.hr" tvg-name="DISCOVERY WORLD" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/47.png" group-title="Croatia",DISCOVERY WORLD
@@ -125,6 +123,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/1905749171d763586d0cf5
 #EXTINF:-1 tvg-id="KLASIK TV.hr" tvg-name="KLASIK TV" tvg-logo="http://116.203.156.75/logo/klasik.png" group-title="Croatia",KLASIK TV
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/888503192cd146390ae85
+#EXTINF:-1 tvg-id="KREATOR TV.hr" tvg-name="KREATOR TV" tvg-logo="http://116.203.156.75/logo/kreator_tv.png" group-title="Croatia",KREATOR TV
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2312065053ffd747fe4f55
 #EXTINF:-1 tvg-id="LAUDATO TV.hr" tvg-name="LAUDATO TV" tvg-logo="http://116.203.156.75/logo/laudato.png" group-title="Croatia",LAUDATO TV
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/241885274900c6fa5a7e01
 #EXTINF:-1 tvg-id="LIBERTAS TV.hr" tvg-name="LIBERTAS TV" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/LibertasTV.png" group-title="Croatia",LIBERTAS TV
@@ -201,10 +201,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/47836227886115f3441f5
 #EXTINF:-1 tvg-id="SPORT KLUB 10.hr" tvg-name="SPORT KLUB 10" tvg-logo="http://nova-iptv.com/logo/SK10_RS_logo.png" group-title="Croatia",SPORT KLUB 10
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/35179595676d6f74d80c38
-#EXTINF:-1 tvg-id="SPORT KLUB 11.hr" tvg-name="SPORT KLUB 11" tvg-logo="" group-title="Croatia",SPORT KLUB 11
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/39730473597cc4c1e27c14
-#EXTINF:-1 tvg-id="SPORT KLUB 12.hr" tvg-name="SPORT KLUB 12" tvg-logo="" group-title="Croatia",SPORT KLUB 12
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/28762191194e7e15383823
 #EXTINF:-1 tvg-id="SPORT KLUB 2.hr" tvg-name="SPORT KLUB 2" tvg-logo="http://nova-iptv.com/logo/SK2_RS_logo.png" group-title="Croatia",SPORT KLUB 2
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/15290369189fd62318b48f
 #EXTINF:-1 tvg-id="SPORT KLUB 3.hr" tvg-name="SPORT KLUB 3" tvg-logo="http://nova-iptv.com/logo/SK3_HR_logo.png" group-title="Croatia",SPORT KLUB 3
