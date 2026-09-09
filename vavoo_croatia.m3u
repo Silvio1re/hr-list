@@ -15,6 +15,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3516788610b7a6eb776bbe
 #EXTINF:-1 tvg-id="ARENA SPORT 3.hr" tvg-name="ARENA SPORT 3" tvg-logo="http://nova-iptv.com/logo/arena-sport-3.png" group-title="Croatia",ARENA SPORT 3
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3976054322cf50b2f60dfa
+#EXTINF:-1 tvg-id="ARENA SPORT 4.hr" tvg-name="ARENA SPORT 4" tvg-logo="http://nova-iptv.com/logo/arena-sport-4.png" group-title="Croatia",ARENA SPORT 4
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/159154845043c2e5a0e5f2
 #EXTINF:-1 tvg-id="ARENA SPORT 5.hr" tvg-name="ARENA SPORT 5" tvg-logo="http://nova-iptv.com/logo/Arena_Sport_5_RS_logo.png" group-title="Croatia",ARENA SPORT 5
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/167334389086ec5591253c
 #EXTINF:-1 tvg-id="ARENA SPORT 6.hr" tvg-name="ARENA SPORT 6" tvg-logo="http://nova-iptv.com/logo/Arena_Sport_6_HR_logo.png" group-title="Croatia",ARENA SPORT 6
