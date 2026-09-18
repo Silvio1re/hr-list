@@ -81,8 +81,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/6699812906aad3e1c9fdf
 #EXTINF:-1 tvg-id="FOX LIFE.hr" tvg-name="FOX LIFE" tvg-logo="http://nova-iptv.com/logo/star_life.png" group-title="Croatia",FOX LIFE
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/32933783859e2824aef181
-#EXTINF:-1 tvg-id="FOX MOVIES.hr" tvg-name="FOX MOVIES" tvg-logo="http://nova-iptv.com/logo/star_movies.png" group-title="Croatia",FOX MOVIES
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/24037746327ad1df7c28ea
 #EXTINF:-1 tvg-id="HAJDUK TV.hr" tvg-name="HAJDUK TV" tvg-logo="http://116.203.156.75/logo/hajduktv.png" group-title="Croatia",HAJDUK TV
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3140991496afb695852358
 #EXTINF:-1 tvg-id="HBO.hr" tvg-name="HBO" tvg-logo="http://116.203.156.75/logo/173.png" group-title="Croatia",HBO
@@ -189,6 +187,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/589720137b4e5d89c4d7a
 #EXTINF:-1 tvg-id="RTL KOCKICA.hr" tvg-name="RTL KOCKICA" tvg-logo="http://nova-iptv.com/logo/rtl-kockica-logo.png" group-title="Croatia",RTL KOCKICA
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/39204616836ec3813e252d
+#EXTINF:-1 tvg-id="RTL LIVING.hr" tvg-name="RTL LIVING" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/RTL_Living_logo.png" group-title="Croatia",RTL LIVING
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/34890790561f636848c832
 #EXTINF:-1 tvg-id="RTL PASSION.hr" tvg-name="RTL PASSION" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/RTL_Passion_logo.png" group-title="Croatia",RTL PASSION
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2361340682fb7597547d64
 #EXTINF:-1 tvg-id="SBTV.hr" tvg-name="SBTV" tvg-logo="http://116.203.156.75/logo/sbtv.png" group-title="Croatia",SBTV
