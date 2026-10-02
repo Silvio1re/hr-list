@@ -33,6 +33,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2895162225984c77cb41af
 #EXTINF:-1 tvg-id="AXN SPIN.hr" tvg-name="AXN SPIN" tvg-logo="http://nova-iptv.com/logo/axn_spin_logo.png" group-title="Croatia",AXN SPIN
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3438430055a228ae99febc
+#EXTINF:-1 tvg-id="BABY TV.hr" tvg-name="BABY TV" tvg-logo="http://116.203.156.75/logo/Babytv.png" group-title="Croatia",BABY TV
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3458882662de530f0f13e8
 #EXTINF:-1 tvg-id="CBS REALITY.hr" tvg-name="CBS REALITY" tvg-logo="http://116.203.156.75/logo/CBS_Reality_logo.png" group-title="Croatia",CBS REALITY
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2983893657823062869ee8
 #EXTINF:-1 tvg-id="CINEMAX.hr" tvg-name="CINEMAX" tvg-logo="http://116.203.156.75/logo/176.png" group-title="Croatia",CINEMAX
@@ -57,8 +59,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/184747089aa9c28996363
 #EXTINF:-1 tvg-id="CRIME+ INVESTIGATION.hr" tvg-name="CRIME+ INVESTIGATION" tvg-logo="http://116.203.156.75/logo/crimeinvest.jpg" group-title="Croatia",CRIME+ INVESTIGATION
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/1150560479cbbf0d2f6b0
-#EXTINF:-1 tvg-id="CRO MAX SELECT 3.hr" tvg-name="CRO MAX SELECT 3" tvg-logo="http://116.203.156.75/logo/cro_max.png" group-title="Croatia",CRO MAX SELECT 3
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/20434979561a458e2d5455
 #EXTINF:-1 tvg-id="CRO MAX SELECT 5.hr" tvg-name="CRO MAX SELECT 5" tvg-logo="http://116.203.156.75/logo/cro_max.png" group-title="Croatia",CRO MAX SELECT 5
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/413648288424dbdb46f07e
 #EXTINF:-1 tvg-id="DA VINCI.hr" tvg-name="DA VINCI" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/90.png" group-title="Croatia",DA VINCI
