@@ -31,8 +31,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/71780175554dccc9439ea
 #EXTINF:-1 tvg-id="AXN.hr" tvg-name="AXN" tvg-logo="http://116.203.156.75/logo/axn.png" group-title="Croatia",AXN
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2895162225984c77cb41af
-#EXTINF:-1 tvg-id="AXN SPIN.hr" tvg-name="AXN SPIN" tvg-logo="http://nova-iptv.com/logo/axn_spin_logo.png" group-title="Croatia",AXN SPIN
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3438430055a228ae99febc
 #EXTINF:-1 tvg-id="BABY TV.hr" tvg-name="BABY TV" tvg-logo="http://116.203.156.75/logo/Babytv.png" group-title="Croatia",BABY TV
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3458882662de530f0f13e8
 #EXTINF:-1 tvg-id="CBS REALITY.hr" tvg-name="CBS REALITY" tvg-logo="http://116.203.156.75/logo/CBS_Reality_logo.png" group-title="Croatia",CBS REALITY
