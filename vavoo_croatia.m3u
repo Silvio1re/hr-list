@@ -105,6 +105,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2830062466e47d11d1a63
 #EXTINF:-1 tvg-id="JADRAN TV.hr" tvg-name="JADRAN TV" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/tv-jadran-logo.png" group-title="Croatia",JADRAN TV
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/4426160511d81a14c5fce
+#EXTINF:-1 tvg-id="JUGOTON TV.hr" tvg-name="JUGOTON TV" tvg-logo="http://116.203.156.75/logo/jugoton.png" group-title="Croatia",JUGOTON TV
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/42432037909e50830e0280
 #EXTINF:-1 tvg-id="KANAL RI.hr" tvg-name="KANAL RI" tvg-logo="https://cdn-0.tvprofil.com/cdn/100x40/10/img/kanali-logo/kanalr-logo.png" group-title="Croatia",KANAL RI
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/715398475bcb756f48c59
 #EXTINF:-1 tvg-id="KINO TV.hr" tvg-name="KINO TV" tvg-logo="http://nova-iptv.com/logo/kinotv_logo.png" group-title="Croatia",KINO TV
@@ -133,6 +135,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3565824619aacc0ed95cb4
 #EXTINF:-1 tvg-id="MINIMAX.hr" tvg-name="MINIMAX" tvg-logo="http://116.203.156.75/logo/minimax.png" group-title="Croatia",MINIMAX
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/35358090316141167a8827
+#EXTINF:-1 tvg-id="MREZA ZAGREB.hr" tvg-name="MREZA ZAGREB" tvg-logo="http://116.203.156.75/logo/mreza_zagreb.png" group-title="Croatia",MREZA ZAGREB
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/3892802551ee9ece2232da
 #EXTINF:-1 tvg-id="N1.hr" tvg-name="N1" tvg-logo="http://nova-iptv.com/logo/n1-logo.png" group-title="Croatia",N1
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/34046621273c019fa4a765
 #EXTINF:-1 tvg-id="NAT GEO.hr" tvg-name="NAT GEO" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/49.png" group-title="Croatia",NAT GEO
@@ -221,8 +225,6 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/135155587153feb779cc2b
 #EXTINF:-1 tvg-id="VIASAT EXPLORE.hr" tvg-name="VIASAT EXPLORE" tvg-logo="" group-title="Croatia",VIASAT EXPLORE
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/447784107740e3395609e
-#EXTINF:-1 tvg-id="VIASAT HISTORY.hr" tvg-name="VIASAT HISTORY" tvg-logo="http://116.203.156.75/logo/6.png" group-title="Croatia",VIASAT HISTORY
-https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/7137811548eb685dd1cba
 #EXTINF:-1 tvg-id="VIASAT KINO PREMIERE.hr" tvg-name="VIASAT KINO PREMIERE" tvg-logo="http://116.203.156.75/logo/viasat_kino.png" group-title="Croatia",VIASAT KINO PREMIERE
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/11047254800c54acbc15d0
 #EXTINF:-1 tvg-id="VTV.hr" tvg-name="VTV" tvg-logo="http://116.203.156.75/logo/vtv.png" group-title="Croatia",VTV
