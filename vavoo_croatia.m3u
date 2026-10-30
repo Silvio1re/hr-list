@@ -207,6 +207,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/39093279742ddf80f58de5
 #EXTINF:-1 tvg-id="SPORT KLUB 6.hr" tvg-name="SPORT KLUB 6" tvg-logo="http://nova-iptv.com/logo/SK6_HR_logo.png" group-title="Croatia",SPORT KLUB 6
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2929977014560abfe413dc
+#EXTINF:-1 tvg-id="SPORT KLUB 7.hr" tvg-name="SPORT KLUB 7" tvg-logo="http://nova-iptv.com/logo/SK7_RS_logo.png" group-title="Croatia",SPORT KLUB 7
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2479083270d6e7ad107bbe
 #EXTINF:-1 tvg-id="SPORT KLUB 8.hr" tvg-name="SPORT KLUB 8" tvg-logo="http://nova-iptv.com/logo/SK8_RS_logo.png" group-title="Croatia",SPORT KLUB 8
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2948692074afdd47e5021
 #EXTINF:-1 tvg-id="SPORT KLUB 9.hr" tvg-name="SPORT KLUB 9" tvg-logo="http://nova-iptv.com/logo/SK9_RS_logo.png" group-title="Croatia",SPORT KLUB 9
