@@ -89,6 +89,8 @@ https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-i
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/114248729091cdeba76493
 #EXTINF:-1 tvg-id="HBO 3.hr" tvg-name="HBO 3" tvg-logo="http://116.203.156.75/logo/175.png" group-title="Croatia",HBO 3
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/2037961034d9a8e714e5ea
+#EXTINF:-1 tvg-id="HBO ADRIA.hr" tvg-name="HBO ADRIA" tvg-logo="http://116.203.156.75/logo/hbo_adria.png" group-title="Croatia",HBO ADRIA
+https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/1535244980e5033eef10a5
 #EXTINF:-1 tvg-id="HISTORY.hr" tvg-name="HISTORY" tvg-logo="http://116.203.156.75/wp-content/themes/movers-packers/images/kanali_logo/66.png" group-title="Croatia",HISTORY
 https://hr-list.hallgrunt.workers.dev/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/907759413654cb8fdbc78
 #EXTINF:-1 tvg-id="HISTORY 2.hr" tvg-name="HISTORY 2" tvg-logo="http://116.203.156.75/logo/h2-logo.png" group-title="Croatia",HISTORY 2
