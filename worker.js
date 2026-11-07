@@ -1,6 +1,5 @@
 /**
- * Cloudflare Worker v2.3 - Geil + Vavoo HLS Proxy
- * Resolve-on-demand + browser-like headers
+ * Cloudflare Worker v2.4 - Geil + Vavoo HLS Proxy (s debug endpointom)
  */
 
 const CORS_HEADERS = {
@@ -19,16 +18,17 @@ function getClientIP(request) {
   return h || null;
 }
 
-// Browser-like headers used for ALL upstream fetches
+// Browser-like headers — što potpuniji set
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0',
   'Accept': '*/*',
   'Accept-Language': 'en-US,en;q=0.5',
+  'Accept-Encoding': 'gzip, deflate, br',
   'Referer': 'https://geil.to/',
   'Origin': 'https://geil.to',
   'Sec-Fetch-Dest': 'empty',
   'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Site': 'cross-site',
+  'Sec-Fetch-Site': 'same-origin',
   'Connection': 'keep-alive',
 };
 
@@ -38,28 +38,98 @@ class ExtractorError extends Error {
 
 // --- Geil resolve (on-demand) ---
 async function resolveGeilPlayUrl(playUrl) {
-  const resolveUrl = `https://geil.to/live/resolve?region=US&language=en&url=${encodeURIComponent(playUrl)}`;
-  const resolveHeaders = {
-    ...BROWSER_HEADERS,
-    'Accept': 'application/json, text/plain, */*',
-  };
-  try {
-    const resp = await fetch(resolveUrl, { headers: resolveHeaders });
-    if (!resp.ok) {
-      console.warn(`[Geil] Resolve HTTP ${resp.status} for ${playUrl}`);
-      return null;
+  const regions = ['US', 'HR', 'DE', 'GB'];
+  for (const region of regions) {
+    const resolveUrl = `https://geil.to/live/resolve?region=${region}&language=en&url=${encodeURIComponent(playUrl)}`;
+    try {
+      const resp = await fetch(resolveUrl, {
+        headers: {
+          ...BROWSER_HEADERS,
+          'Accept': 'application/json, text/plain, */*',
+          'Sec-Fetch-Site': 'same-origin',
+        },
+      });
+      if (!resp.ok) {
+        console.warn(`[Geil] Resolve HTTP ${resp.status} (region=${region})`);
+        continue;
+      }
+      const data = await resp.json();
+      const streamUrl = data.url || (Array.isArray(data) ? data[0]?.url : null);
+      if (streamUrl) {
+        console.log(`[Geil] Resolved (region=${region}): ${streamUrl.substring(0, 100)}`);
+        return streamUrl;
+      }
+    } catch (e) {
+      console.warn(`[Geil] Resolve exception (region=${region}): ${e.message}`);
     }
-    const data = await resp.json();
-    return data.url || (Array.isArray(data) ? data[0]?.url : null);
-  } catch (e) {
-    console.warn(`[Geil] Resolve exception: ${e.message}`);
-    return null;
   }
+  return null;
 }
 
-// --- HLS proxy (rewrites segments through worker) ---
+// --- Debug endpoint — pokaži što server stvarno vraća ---
+async function debugFetch(urlParam) {
+  const url = decodeURIComponent(urlParam);
+  const result = {
+    target_url: url,
+    headers_sent: BROWSER_HEADERS,
+    attempts: [],
+  };
+
+  // Pokušaj 1: sa svim browser headerima
+  try {
+    const r1 = await fetch(url, { headers: BROWSER_HEADERS });
+    const body1 = await r1.text().catch(() => '');
+    result.attempts.push({
+      attempt: 1,
+      name: 'full_browser_headers',
+      status: r1.status,
+      ok: r1.ok,
+      response_headers: Object.fromEntries(r1.headers.entries()),
+      body_preview: body1.substring(0, 500),
+    });
+  } catch (e) {
+    result.attempts.push({ attempt: 1, error: e.message });
+  }
+
+  // Pokušaj 2: minimalni headeri
+  try {
+    const r2 = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    });
+    const body2 = await r2.text().catch(() => '');
+    result.attempts.push({
+      attempt: 2,
+      name: 'minimal_headers',
+      status: r2.status,
+      ok: r2.ok,
+      body_preview: body2.substring(0, 500),
+    });
+  } catch (e) {
+    result.attempts.push({ attempt: 2, error: e.message });
+  }
+
+  // Pokušaj 3: bez ikakvih headera
+  try {
+    const r3 = await fetch(url);
+    const body3 = await r3.text().catch(() => '');
+    result.attempts.push({
+      attempt: 3,
+      name: 'no_headers',
+      status: r3.status,
+      ok: r3.ok,
+      body_preview: body3.substring(0, 500),
+    });
+  } catch (e) {
+    result.attempts.push({ attempt: 3, error: e.message });
+  }
+
+  return result;
+}
+
+// --- HLS proxy ---
 async function proxyHLS(streamUrl, request, workerOrigin) {
   const fetchHeaders = { ...BROWSER_HEADERS };
+
   const range = request.headers.get('Range');
   if (range) fetchHeaders['Range'] = range;
 
@@ -67,15 +137,23 @@ async function proxyHLS(streamUrl, request, workerOrigin) {
   try {
     response = await fetch(streamUrl, { headers: fetchHeaders });
   } catch (e) {
-    return new Response(`Upstream fetch error: ${e.message}`, {
+    console.error(`[ProxyHLS] Fetch exception: ${e.message}`);
+    return new Response(`Upstream fetch error: ${e.message}\nURL: ${streamUrl}`, {
       status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
     });
   }
 
   if (!response.ok) {
-    return new Response(`Upstream returned ${response.status}`, {
-      status: response.status, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
-    });
+    const errText = await response.text().catch(() => '(no body)');
+    const errHeaders = Object.fromEntries(response.headers.entries());
+    console.error(`[ProxyHLS] ${response.status} on ${streamUrl}. Body: ${errText.substring(0, 300)}`);
+    return new Response(
+      `Upstream returned ${response.status}\n` +
+      `URL: ${streamUrl}\n` +
+      `Response headers: ${JSON.stringify(errHeaders, null, 2)}\n` +
+      `Response body: ${errText.substring(0, 500)}`,
+      { status: response.status, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' } }
+    );
   }
 
   const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
@@ -84,18 +162,17 @@ async function proxyHLS(streamUrl, request, workerOrigin) {
     || contentType.includes('x-mpegurl')
     || cleanUrl.endsWith('.m3u8');
 
-  // Binary passthrough (segment / key / init)
+  // Binarni passthrough (segment / key / init)
   if (!isPlaylist) {
     const headers = { ...CORS_HEADERS };
-    const passthrough = ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges'];
-    for (const k of passthrough) {
+    for (const k of ['Content-Type', 'Content-Length', 'Content-Range', 'Accept-Ranges']) {
       const v = response.headers.get(k);
       if (v) headers[k] = v;
     }
     return new Response(response.body, { status: response.status, headers });
   }
 
-  // Rewrite m3u8
+  // Prepisivanje m3u8
   const text = await response.text();
   const baseUrl = new URL(streamUrl);
   const lines = text.split('\n');
@@ -127,13 +204,11 @@ async function proxyHLS(streamUrl, request, workerOrigin) {
   });
 }
 
-// --- Vavoo (unchanged except uses proxyHLS) ---
+// --- Vavoo ---
 const PING_URLS = ["https://www.vavoo.tv/api/app/ping", "https://www.vypn.net/api/app/ping"];
 const VYPN_PACKAGE = "net.vypn.app";
 const VYPN_VERSION = "1.4.1";
 const BASE_SITES = ["https://vavoo.to", "https://kool.to"];
-const VAVOO_LANGUAGE = "de";
-const VAVOO_REGION = "DE";
 
 function base64UrlDecode(s) { const p = s.length % 4; const t = s + (p ? '='.repeat(4 - p) : ''); const b = atob(t); return decodeURIComponent([...b].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')); }
 function base64UrlEncode(s) { return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
@@ -152,7 +227,7 @@ function rewriteAddonSigIp(sig, ip) {
 function buildPingPayload() {
   const ts = Date.now();
   return JSON.stringify({
-    token: "", reason: "app-focus", locale: VAVOO_LANGUAGE, theme: "dark",
+    token: "", reason: "app-focus", locale: "de", theme: "dark",
     metadata: {
       device: { type: "phone", uniqueId: crypto.randomUUID() },
       os: { name: "android", version: "14", abis: ["arm64-v8a"], host: "android" },
@@ -187,7 +262,7 @@ async function fetchAddonSigWithCache(clientIp) {
   try { const c = await cache.match(key); if (c) return await c.text(); } catch {}
   const sig = await fetchAddonSig(clientIp);
   if (sig) {
-    try { await cache.put(key, new Response(sig, { headers: { 'Cache-Control': `s-maxage=${SIG_TTL}, stale-while-revalidate` } })); } catch {}
+    try { await cache.put(key, new Response(sig, { headers: { 'Cache-Control': `s-maxage=${SIG_TTL}` } })); } catch {}
   }
   return sig;
 }
@@ -197,7 +272,7 @@ class VavooExtractor {
   async resolve(vUrl, ip) {
     const n = this._norm(vUrl);
     let sig = await fetchAddonSigWithCache(ip);
-    const body = JSON.stringify({ language: VAVOO_LANGUAGE, region: VAVOO_REGION, url: n, clientVersion: "3.0.2" });
+    const body = JSON.stringify({ language: "de", region: "DE", url: n, clientVersion: "3.0.2" });
     for (let i = 0; i < 2; i++) {
       const h = { "Origin": "https://vavoo.to", "Referer": "https://vavoo.to/", "User-Agent": "MediaHubMX/2", "Accept": "*/*", "Content-Type": "application/json; charset=utf-8" };
       if (sig) h["mediahubmx-signature"] = sig;
@@ -218,7 +293,7 @@ class VavooExtractor {
   }
 }
 
-// --- Playlist proxy (unchanged) ---
+// --- Playlist proxy ---
 async function handlePlaylistProxy(request) {
   const url = new URL(request.url);
   const p = url.searchParams.get('url');
@@ -242,23 +317,22 @@ async function handlePlaylistProxy(request) {
 function handleInfoPage(request) {
   const o = new URL(request.url).origin;
   return new Response(`<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0a0a0b;color:#fff;padding:2rem;max-width:900px;margin:auto">
-  <h1>Stream Extractor v2.3</h1>
+  <h1>Stream Extractor v2.4</h1>
   <p><b>Geil play URL:</b> <code>${o}/manifest.m3u8?url=https://geil.to/live/play/ID</code></p>
   <p><b>Direct stream:</b> <code>${o}/manifest.m3u8?url=http://.../index.m3u8</code></p>
-  <p><b>Vavoo page:</b> <code>${o}/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/ID</code></p>
+  <p><b>Debug (vidi zašto 403):</b> <code>${o}/debug?url=&lt;URL&gt;</code></p>
   <p><a href="${o}/status" style="color:#3b82f6">Status</a></p></body></html>`,
   { headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 function handleStatus(request) {
-  const ip = getClientIP(request);
   return new Response(JSON.stringify({
-    status: "operational", version: "2.3", timestamp: new Date().toISOString(),
-    client_info: { ip, country: request.headers.get('CF-IPCountry') || 'unknown' },
+    status: "operational", version: "2.4", timestamp: new Date().toISOString(),
     supported_services: {
       vavoo: { mode: "proxy+resolve" },
       geil_play_url: { mode: "resolve+proxy", path: "/manifest.m3u8?url=https://geil.to/live/play/ID" },
       direct_hls: { mode: "proxy", path: "/manifest.m3u8?url=http://.../index.m3u8" },
+      debug: { path: "/debug?url=<URL>" },
     },
   }, null, 2), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
 }
@@ -275,31 +349,38 @@ export default {
       if (url.pathname === '/status') return handleStatus(request);
       if (url.pathname === '/playlist') return await handlePlaylistProxy(request);
 
+      // DEBUG endpoint
+      if (url.pathname === '/debug') {
+        const u = url.searchParams.get('url');
+        if (!u) return new Response('Missing url', { status: 400, headers: CORS_HEADERS });
+        const r = await debugFetch(u);
+        return new Response(JSON.stringify(r, null, 2), {
+          headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+        });
+      }
+
       if (url.pathname === '/manifest.m3u8') {
         const targetUrl = url.searchParams.get('url');
         if (!targetUrl) return new Response(JSON.stringify({ error: 'Missing url param' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
 
-        // 1. Geil play URL → resolve on-demand + proxy
         if (targetUrl.includes('/live/play/')) {
           const streamUrl = await resolveGeilPlayUrl(targetUrl);
-          if (!streamUrl) return new Response('Geil resolve failed', { status: 502, headers: CORS_HEADERS });
+          if (!streamUrl) return new Response(`Geil resolve failed for: ${targetUrl}`, { status: 502, headers: CORS_HEADERS });
           return await proxyHLS(streamUrl, request, workerOrigin);
         }
 
-        // 2. Vavoo page → extractor (which now proxies)
         if ((targetUrl.includes('vavoo.to') || targetUrl.includes('kool.to')) && !targetUrl.split('?')[0].endsWith('.m3u8')) {
           const ex = new VavooExtractor();
           return await ex.handle(targetUrl, request, workerOrigin);
         }
 
-        // 3. Direct stream / segment / key → proxy
         return await proxyHLS(targetUrl, request, workerOrigin);
       }
 
       return new Response(JSON.stringify({ error: '404' }), { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     } catch (e) {
       console.error(e.stack);
-      return new Response(JSON.stringify({ error: e.message, type: e.name }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: e.message, type: e.name, stack: e.stack }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
     }
   },
 };
