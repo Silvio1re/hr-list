@@ -1,8 +1,5 @@
 /**
- * Cloudflare Worker v2.6 - Geil 302 Redirect (za IPTV playere)
- * - Geil play URL → resolve + 302 redirect na stream (player sam fetcha)
- * - Vavoo → proxy (jer vavoo streamovi su https, ne blokiraju se)
- * - /debug endpoint ostaje za dijagnostiku
+ * Cloudflare Worker v2.7 - Geil + Vavoo (s addonSig tokenom)
  */
 
 const CORS_HEADERS = {
@@ -21,56 +18,82 @@ function getClientIP(request) {
   return h || null;
 }
 
-const BROWSER_HEADERS = {
+// Headeri za geil resolve — oponašaju pravi browser XHR (BEZ Origin!)
+const GEIL_RESOLVE_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0',
   'Accept': '*/*',
   'Accept-Language': 'en-US,en;q=0.5',
   'Referer': 'https://geil.to/',
-  'Origin': 'https://geil.to',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-origin',
 };
 
 class ExtractorError extends Error {
   constructor(m) { super(m); this.name = 'ExtractorError'; }
 }
 
-// --- Geil resolve (on-demand) ---
+// --- Geil resolve (s addonSig tokenom) ---
 async function resolveGeilPlayUrl(playUrl) {
+  // Dohvati addonSig token (isto kao Enigma2 skripta)
+  let sig = await fetchAddonSigWithCache(null);
+  if (sig) {
+    console.log(`[Geil] Using addonSig token (${sig.substring(0, 30)}...)`);
+  } else {
+    console.warn(`[Geil] No addonSig available, trying without signature`);
+  }
+
   const regions = ['US', 'HR', 'DE', 'GB'];
   for (const region of regions) {
     const resolveUrl = `https://geil.to/live/resolve?region=${region}&language=en&url=${encodeURIComponent(playUrl)}`;
+    const headers = { ...GEIL_RESOLVE_HEADERS };
+    if (sig) headers['mediahubmx-signature'] = sig;
+
     try {
-      const resp = await fetch(resolveUrl, {
-        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json, text/plain, */*' },
-      });
-      if (!resp.ok) continue;
+      const resp = await fetch(resolveUrl, { headers });
+      if (!resp.ok) {
+        console.warn(`[Geil] Resolve ${region} → ${resp.status}`);
+        continue;
+      }
       const data = await resp.json();
       const streamUrl = data.url || (Array.isArray(data) ? data[0]?.url : null);
       if (streamUrl) {
-        console.log(`[Geil] Resolved (region=${region}): ${streamUrl.substring(0, 80)}`);
+        console.log(`[Geil] Resolved (${region}): ${streamUrl.substring(0, 80)}`);
         return streamUrl;
       }
     } catch (e) {
-      console.warn(`[Geil] Resolve exception (${region}): ${e.message}`);
+      console.warn(`[Geil] Resolve ${region} exception: ${e.message}`);
     }
   }
   return null;
 }
 
-// --- Debug (testira resolve + redirect dostupnost) ---
+// --- Debug ---
 async function debugFetch(urlParam) {
   const url = decodeURIComponent(urlParam);
   const results = { target_url: url, steps: [] };
   let streamUrl = null;
 
   if (url.includes('/live/play/')) {
+    // Prvo dohvati token
+    const sig = await fetchAddonSigWithCache(null);
+    results.addon_sig_available = !!sig;
+    if (sig) results.addon_sig_preview = sig.substring(0, 50) + '...';
+
     for (const region of ['US', 'HR', 'DE', 'GB']) {
       const resolveUrl = `https://geil.to/live/resolve?region=${region}&language=en&url=${encodeURIComponent(url)}`;
+      const headers = { ...GEIL_RESOLVE_HEADERS };
+      if (sig) headers['mediahubmx-signature'] = sig;
+
       try {
-        const r = await fetch(resolveUrl, {
-          headers: { ...BROWSER_HEADERS, 'Accept': 'application/json, text/plain, */*' },
-        });
+        const r = await fetch(resolveUrl, { headers });
         const body = await r.text();
-        results.steps.push({ step: `resolve_${region}`, status: r.status, body_preview: body.substring(0, 400) });
+        results.steps.push({
+          step: `resolve_${region}`,
+          status: r.status,
+          body_preview: body.substring(0, 400),
+          sent_signature: !!sig
+        });
         if (r.ok) {
           try {
             const data = JSON.parse(body);
@@ -87,17 +110,21 @@ async function debugFetch(urlParam) {
   }
 
   if (streamUrl) {
-    results.summary = `✅ Resolve uspio. Worker će vratiti 302 redirect na: ${streamUrl.substring(0, 100)}...`;
-    results.note = "IPTV player će pratiti redirect i reproducirati stream direktno. Ovo NE radi u web browseru (mixed content), ali radi u VLC/TiviMate/IPTV Smarters/Enigma2.";
+    results.summary = `✅ Resolve uspio. Worker će vratiti 302 redirect.`;
+    results.location = streamUrl;
   } else {
-    results.summary = "❌ Resolve nije uspio.";
+    results.summary = "❌ Resolve nije uspio ni s jednom regijom (čak i s tokenom).";
   }
   return results;
 }
 
-// --- HLS proxy (samo za https streamove, npr. Vavoo) ---
+// --- HLS proxy (za Vavoo) ---
 async function proxyHLS(streamUrl, request, workerOrigin) {
-  const fetchHeaders = { ...BROWSER_HEADERS };
+  const fetchHeaders = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0',
+    'Accept': '*/*',
+    'Referer': 'https://vavoo.to/',
+  };
   const range = request.headers.get('Range');
   if (range) fetchHeaders['Range'] = range;
 
@@ -150,16 +177,69 @@ async function proxyHLS(streamUrl, request, workerOrigin) {
   });
 }
 
-// --- Vavoo (zadržan proxy jer vavoo streamovi su https) ---
+// --- Vavoo token (isto kao Enigma2 skripta) ---
 const PING_URLS = ["https://www.vavoo.tv/api/app/ping", "https://www.vypn.net/api/app/ping"];
 const BASE_SITES = ["https://vavoo.to", "https://kool.to"];
 
 function base64UrlDecode(s) { const p = s.length % 4; const t = s + (p ? '='.repeat(4 - p) : ''); const b = atob(t); return decodeURIComponent([...b].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')); }
 function base64UrlEncode(s) { return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 function rewriteAddonSigIp(sig, ip) { try { const o = JSON.parse(base64UrlDecode(sig)); if (!o?.data) return sig; const d = JSON.parse(o.data); const c = Array.isArray(d.ips) ? d.ips : []; d.ips = [ip, ...c.filter(x => x && x !== ip)]; if (typeof d.ip === 'string') d.ip = ip; o.data = JSON.stringify(d); return base64UrlEncode(JSON.stringify(o)); } catch { return sig; } }
-function buildPingPayload() { const ts = Date.now(); return JSON.stringify({ token: "", reason: "app-focus", locale: "de", theme: "dark", metadata: { device: { type: "phone", uniqueId: crypto.randomUUID() }, os: { name: "android", version: "14", abis: ["arm64-v8a"], host: "android" }, app: { platform: "android" }, version: { package: "net.vypn.app", binary: "1.4.1", js: "1.4.1" } }, appFocusTime: 0, playerActive: false, playDuration: 0, devMode: false, hasAddon: true, castConnected: false, package: "net.vypn.app", version: "1.4.1", process: "app", firstAppStart: ts - 86400000, lastAppStart: ts, ipLocation: null, adblockEnabled: true, migrationApplied: false, migrationTargetInstalled: false, proxy: { supported: ["ss"], engine: "Mu", ssVersion: "2022", enabled: false, autoServer: true, id: "" }, iap: { supported: false, error: "" } }); }
-async function fetchAddonSig(ip) { const h = { "user-agent": "okhttp/4.11.0", "accept": "application/json", "content-type": "application/json; charset=utf-8" }; for (const u of PING_URLS) { try { const r = await fetch(u, { method: "POST", headers: h, body: buildPingPayload() }); if (!r.ok) continue; const d = await r.json(); const sig = d?.addonSig || d?.mhub; if (sig) return ip ? rewriteAddonSigIp(sig, ip) : sig; } catch {} } return null; }
-async function fetchAddonSigWithCache(ip) { if (!ip) return fetchAddonSig(ip); const k = `https://cache.internal/addonSig_${encodeURIComponent(ip)}`; const c = caches.default; try { const r = await c.match(k); if (r) return await r.text(); } catch {} const s = await fetchAddonSig(ip); if (s) { try { await c.put(k, new Response(s, { headers: { 'Cache-Control': `s-maxage=${SIG_TTL}` } })); } catch {} } return s; }
+
+function buildPingPayload() {
+  const ts = Date.now();
+  return JSON.stringify({
+    token: "", reason: "app-focus", locale: "de", theme: "dark",
+    metadata: {
+      device: { type: "phone", uniqueId: crypto.randomUUID() },
+      os: { name: "android", version: "14", abis: ["arm64-v8a"], host: "android" },
+      app: { platform: "android" },
+      version: { package: "net.vypn.app", binary: "1.4.1", js: "1.4.1" },
+    },
+    appFocusTime: 0, playerActive: false, playDuration: 0, devMode: false,
+    hasAddon: true, castConnected: false, package: "net.vypn.app", version: "1.4.1",
+    process: "app", firstAppStart: ts - 86400000, lastAppStart: ts, ipLocation: null,
+    adblockEnabled: true, migrationApplied: false, migrationTargetInstalled: false,
+    proxy: { supported: ["ss"], engine: "Mu", ssVersion: "2022", enabled: false, autoServer: true, id: "" },
+    iap: { supported: false, error: "" },
+  });
+}
+
+async function fetchAddonSig(ip) {
+  const h = { "user-agent": "okhttp/4.11.0", "accept": "application/json", "content-type": "application/json; charset=utf-8" };
+  for (const u of PING_URLS) {
+    try {
+      const r = await fetch(u, { method: "POST", headers: h, body: buildPingPayload() });
+      if (!r.ok) continue;
+      const d = await r.json();
+      const sig = d?.addonSig || d?.mhub;
+      if (sig) {
+        console.log(`[AddonSig] Token obtained from ${u}`);
+        return ip ? rewriteAddonSigIp(sig, ip) : sig;
+      }
+    } catch (e) {
+      console.warn(`[AddonSig] Ping ${u} failed: ${e.message}`);
+    }
+  }
+  return null;
+}
+
+async function fetchAddonSigWithCache(ip) {
+  const cacheKey = `https://cache.internal/addonSig_${ip || 'global'}`;
+  const cache = caches.default;
+  try {
+    const c = await cache.match(cacheKey);
+    if (c) return await c.text();
+  } catch {}
+  const sig = await fetchAddonSig(ip);
+  if (sig) {
+    try {
+      await cache.put(cacheKey, new Response(sig, {
+        headers: { 'Cache-Control': `s-maxage=${SIG_TTL}` }
+      }));
+    } catch {}
+  }
+  return sig;
+}
 
 class VavooExtractor {
   async resolve(vUrl, ip) {
@@ -183,7 +263,6 @@ class VavooExtractor {
   async handle(vUrl, request, workerOrigin) {
     const ip = getClientIP(request);
     const streamUrl = await this.resolve(vUrl, ip);
-    // Vavoo streamovi su obično https, pa proxy radi
     return await proxyHLS(streamUrl, request, workerOrigin);
   }
 }
@@ -196,7 +275,10 @@ async function handlePlaylistProxy(request) {
   const urls = p.split(';').filter(x => x.trim());
   let out = '';
   for (const u of urls) {
-    try { const r = await fetch(u, { headers: BROWSER_HEADERS }); if (r.ok) out += await r.text() + '\n'; } catch {}
+    try {
+      const r = await fetch(u, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+      if (r.ok) out += await r.text() + '\n';
+    } catch {}
   }
   const re = out.split('\n').map(line => {
     const t = line.trim();
@@ -212,20 +294,19 @@ async function handlePlaylistProxy(request) {
 function handleInfoPage(request) {
   const o = new URL(request.url).origin;
   return new Response(`<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0a0a0b;color:#fff;padding:2rem;max-width:900px;margin:auto">
-  <h1>Stream Extractor v2.6</h1>
+  <h1>Stream Extractor v2.7</h1>
   <p><b>Geil play URL (302 redirect):</b> <code>${o}/manifest.m3u8?url=https://geil.to/live/play/ID</code></p>
   <p><b>Vavoo (proxy):</b> <code>${o}/manifest.m3u8?url=https://vavoo.to/vavoo-iptv/play/ID</code></p>
   <p><b>Debug:</b> <code>${o}/debug?url=&lt;URL&gt;</code></p>
-  <p style="color:#f59e0b"><b>Napomena:</b> Geil 302 redirect radi u IPTV playerima (VLC, TiviMate, Enigma2), ne u web browseru.</p>
   <p><a href="${o}/status" style="color:#3b82f6">Status</a></p></body></html>`,
   { headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 function handleStatus(request) {
   return new Response(JSON.stringify({
-    status: "operational", version: "2.6", timestamp: new Date().toISOString(),
+    status: "operational", version: "2.7", timestamp: new Date().toISOString(),
     supported_services: {
-      geil_play_url: { mode: "resolve + 302 redirect", note: "Radi u IPTV playerima, ne u browseru" },
+      geil_play_url: { mode: "resolve (s addonSig tokenom) + 302 redirect" },
       vavoo: { mode: "proxy" },
       debug: { path: "/debug?url=<URL>" },
     },
@@ -257,7 +338,6 @@ export default {
         const targetUrl = url.searchParams.get('url');
         if (!targetUrl) return new Response(JSON.stringify({ error: 'Missing url' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
 
-        // 1. Geil play URL → resolve + 302 redirect (IPTV player sam fetcha stream)
         if (targetUrl.includes('/live/play/')) {
           const streamUrl = await resolveGeilPlayUrl(targetUrl);
           if (!streamUrl) return new Response(`Geil resolve failed for: ${targetUrl}`, { status: 502, headers: CORS_HEADERS });
@@ -268,13 +348,11 @@ export default {
           });
         }
 
-        // 2. Vavoo → proxy
         if ((targetUrl.includes('vavoo.to') || targetUrl.includes('kool.to')) && !targetUrl.split('?')[0].endsWith('.m3u8')) {
           const ex = new VavooExtractor();
           return await ex.handle(targetUrl, request, workerOrigin);
         }
 
-        // 3. Ostalo → proxy
         return await proxyHLS(targetUrl, request, workerOrigin);
       }
 
