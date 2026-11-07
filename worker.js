@@ -1,5 +1,7 @@
 /**
- * Cloudflare Worker v2.4 - Geil + Vavoo HLS Proxy (s debug endpointom)
+ * Cloudflare Worker v2.5 - Geil + Vavoo HLS Proxy
+ * - Smart /debug endpoint za dijagnostiku
+ * - Testira resolve + stream fetch s više header varijanti
  */
 
 const CORS_HEADERS = {
@@ -18,41 +20,29 @@ function getClientIP(request) {
   return h || null;
 }
 
-// Browser-like headers — što potpuniji set
+// Default headers za sve upstream fetch pozive
 const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0',
   'Accept': '*/*',
   'Accept-Language': 'en-US,en;q=0.5',
-  'Accept-Encoding': 'gzip, deflate, br',
   'Referer': 'https://geil.to/',
   'Origin': 'https://geil.to',
-  'Sec-Fetch-Dest': 'empty',
-  'Sec-Fetch-Mode': 'cors',
-  'Sec-Fetch-Site': 'same-origin',
-  'Connection': 'keep-alive',
 };
 
 class ExtractorError extends Error {
   constructor(m) { super(m); this.name = 'ExtractorError'; }
 }
 
-// --- Geil resolve (on-demand) ---
+// --- Geil resolve (on-demand, više regija) ---
 async function resolveGeilPlayUrl(playUrl) {
   const regions = ['US', 'HR', 'DE', 'GB'];
   for (const region of regions) {
     const resolveUrl = `https://geil.to/live/resolve?region=${region}&language=en&url=${encodeURIComponent(playUrl)}`;
     try {
       const resp = await fetch(resolveUrl, {
-        headers: {
-          ...BROWSER_HEADERS,
-          'Accept': 'application/json, text/plain, */*',
-          'Sec-Fetch-Site': 'same-origin',
-        },
+        headers: { ...BROWSER_HEADERS, 'Accept': 'application/json, text/plain, */*' },
       });
-      if (!resp.ok) {
-        console.warn(`[Geil] Resolve HTTP ${resp.status} (region=${region})`);
-        continue;
-      }
+      if (!resp.ok) continue;
       const data = await resp.json();
       const streamUrl = data.url || (Array.isArray(data) ? data[0]?.url : null);
       if (streamUrl) {
@@ -60,70 +50,124 @@ async function resolveGeilPlayUrl(playUrl) {
         return streamUrl;
       }
     } catch (e) {
-      console.warn(`[Geil] Resolve exception (region=${region}): ${e.message}`);
+      console.warn(`[Geil] Resolve exception (${region}): ${e.message}`);
     }
   }
   return null;
 }
 
-// --- Debug endpoint — pokaži što server stvarno vraća ---
+// --- SMART DEBUG: testira resolve + stream s više header varijanti ---
 async function debugFetch(urlParam) {
   const url = decodeURIComponent(urlParam);
-  const result = {
+  const results = {
     target_url: url,
-    headers_sent: BROWSER_HEADERS,
-    attempts: [],
+    steps: []
   };
 
-  // Pokušaj 1: sa svim browser headerima
-  try {
-    const r1 = await fetch(url, { headers: BROWSER_HEADERS });
-    const body1 = await r1.text().catch(() => '');
-    result.attempts.push({
-      attempt: 1,
-      name: 'full_browser_headers',
-      status: r1.status,
-      ok: r1.ok,
-      response_headers: Object.fromEntries(r1.headers.entries()),
-      body_preview: body1.substring(0, 500),
-    });
-  } catch (e) {
-    result.attempts.push({ attempt: 1, error: e.message });
+  let streamUrl = null;
+
+  // Ako je play URL → prvo resolvaj
+  if (url.includes('/live/play/')) {
+    for (const region of ['US', 'HR', 'DE', 'GB']) {
+      const resolveUrl = `https://geil.to/live/resolve?region=${region}&language=en&url=${encodeURIComponent(url)}`;
+      try {
+        const r = await fetch(resolveUrl, {
+          headers: { ...BROWSER_HEADERS, 'Accept': 'application/json, text/plain, */*' },
+        });
+        const body = await r.text();
+        results.steps.push({
+          step: `resolve_${region}`,
+          status: r.status,
+          ok: r.ok,
+          body_preview: body.substring(0, 400)
+        });
+        if (r.ok) {
+          try {
+            const data = JSON.parse(body);
+            const su = data.url || (Array.isArray(data) ? data[0]?.url : null);
+            if (su) {
+              streamUrl = su;
+              results.resolved_stream_url = su;
+              results.working_region = region;
+              break;
+            }
+          } catch {}
+        }
+      } catch (e) {
+        results.steps.push({ step: `resolve_${region}`, error: e.message });
+      }
+    }
+  } else {
+    streamUrl = url;
   }
 
-  // Pokušaj 2: minimalni headeri
-  try {
-    const r2 = await fetch(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0' },
-    });
-    const body2 = await r2.text().catch(() => '');
-    result.attempts.push({
-      attempt: 2,
-      name: 'minimal_headers',
-      status: r2.status,
-      ok: r2.ok,
-      body_preview: body2.substring(0, 500),
-    });
-  } catch (e) {
-    result.attempts.push({ attempt: 2, error: e.message });
+  if (!streamUrl) {
+    results.summary = "❌ Resolve nije uspio ni za jednu regiju — geil.to /live/resolve ne vraća stream URL.";
+    return results;
   }
 
-  // Pokušaj 3: bez ikakvih headera
-  try {
-    const r3 = await fetch(url);
-    const body3 = await r3.text().catch(() => '');
-    result.attempts.push({
-      attempt: 3,
+  // Testiraj stream fetch s različitim header setovima
+  const headerVariants = [
+    {
+      name: 'full_browser',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0',
+        'Accept': '*/*',
+        'Referer': 'https://geil.to/',
+        'Origin': 'https://geil.to',
+      }
+    },
+    {
+      name: 'vlc_like',
+      headers: {
+        'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20',
+        'Accept': '*/*',
+      }
+    },
+    {
+      name: 'ffmpeg_like',
+      headers: {
+        'User-Agent': 'Lavf/58.76.100',
+      }
+    },
+    {
+      name: 'minimal_ua',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+      }
+    },
+    {
       name: 'no_headers',
-      status: r3.status,
-      ok: r3.ok,
-      body_preview: body3.substring(0, 500),
-    });
-  } catch (e) {
-    result.attempts.push({ attempt: 3, error: e.message });
+      headers: {}
+    },
+  ];
+
+  for (const variant of headerVariants) {
+    try {
+      const r = await fetch(streamUrl, { headers: variant.headers });
+      const body = await r.text();
+      results.steps.push({
+        step: `stream_${variant.name}`,
+        status: r.status,
+        ok: r.ok,
+        content_type: r.headers.get('content-type'),
+        body_preview: body.substring(0, 300)
+      });
+      if (r.ok) {
+        results.summary = `✅ Stream radi s header setom: "${variant.name}"`;
+        results.working_header_variant = variant.name;
+        return results;
+      }
+    } catch (e) {
+      results.steps.push({
+        step: `stream_${variant.name}`,
+        error: e.message
+      });
+    }
   }
 
-  return result;
+  results.summary = "❌ Nijedan header set nije prošao. Stream server vjerojatno blokira Cloudflare IP-e ili port 8008 nije dostupan s CF-a.";
+  return results;
 }
 
 // --- HLS proxy ---
@@ -137,7 +181,7 @@ async function proxyHLS(streamUrl, request, workerOrigin) {
   try {
     response = await fetch(streamUrl, { headers: fetchHeaders });
   } catch (e) {
-    console.error(`[ProxyHLS] Fetch exception: ${e.message}`);
+    console.error(`[ProxyHLS] Fetch exception: ${e.message} | URL: ${streamUrl}`);
     return new Response(`Upstream fetch error: ${e.message}\nURL: ${streamUrl}`, {
       status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
     });
@@ -210,8 +254,15 @@ const VYPN_PACKAGE = "net.vypn.app";
 const VYPN_VERSION = "1.4.1";
 const BASE_SITES = ["https://vavoo.to", "https://kool.to"];
 
-function base64UrlDecode(s) { const p = s.length % 4; const t = s + (p ? '='.repeat(4 - p) : ''); const b = atob(t); return decodeURIComponent([...b].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')); }
-function base64UrlEncode(s) { return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function base64UrlDecode(s) {
+  const p = s.length % 4;
+  const t = s + (p ? '='.repeat(4 - p) : '');
+  const b = atob(t);
+  return decodeURIComponent([...b].map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''));
+}
+function base64UrlEncode(s) {
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 function rewriteAddonSigIp(sig, ip) {
   try {
     const obj = JSON.parse(base64UrlDecode(sig));
@@ -268,16 +319,29 @@ async function fetchAddonSigWithCache(clientIp) {
 }
 
 class VavooExtractor {
-  _norm(u) { const m = u.match(/\/play\/([^/?#]+)/); if (m) return `https://vavoo.to/vavoo-iptv/play/${m[1]}`; return u; }
+  _norm(u) {
+    const m = u.match(/\/play\/([^/?#]+)/);
+    if (m) return `https://vavoo.to/vavoo-iptv/play/${m[1]}`;
+    return u;
+  }
   async resolve(vUrl, ip) {
     const n = this._norm(vUrl);
     let sig = await fetchAddonSigWithCache(ip);
     const body = JSON.stringify({ language: "de", region: "DE", url: n, clientVersion: "3.0.2" });
     for (let i = 0; i < 2; i++) {
-      const h = { "Origin": "https://vavoo.to", "Referer": "https://vavoo.to/", "User-Agent": "MediaHubMX/2", "Accept": "*/*", "Content-Type": "application/json; charset=utf-8" };
+      const h = {
+        "Origin": "https://vavoo.to",
+        "Referer": "https://vavoo.to/",
+        "User-Agent": "MediaHubMX/2",
+        "Accept": "*/*",
+        "Content-Type": "application/json; charset=utf-8"
+      };
       if (sig) h["mediahubmx-signature"] = sig;
       const r = await fetch(`${BASE_SITES[i]}/mediahubmx-resolve.json`, { method: "POST", headers: h, body });
-      if ((r.status === 451 || r.status === 502) && i === 0) { sig = (await fetchAddonSigWithCache(ip)) || sig; continue; }
+      if ((r.status === 451 || r.status === 502) && i === 0) {
+        sig = (await fetchAddonSigWithCache(ip)) || sig;
+        continue;
+      }
       if (!r.ok) throw new ExtractorError(`Vavoo resolve ${r.status}`);
       const d = await r.json();
       const url = Array.isArray(d) ? (d.find(x => x.url?.startsWith('https://'))?.url || d[0]?.url) : d?.url;
@@ -301,7 +365,10 @@ async function handlePlaylistProxy(request) {
   const urls = p.split(';').filter(x => x.trim());
   let out = '';
   for (const u of urls) {
-    try { const r = await fetch(u, { headers: BROWSER_HEADERS }); if (r.ok) out += await r.text() + '\n'; } catch {}
+    try {
+      const r = await fetch(u, { headers: BROWSER_HEADERS });
+      if (r.ok) out += await r.text() + '\n';
+    } catch {}
   }
   const re = out.split('\n').map(line => {
     const t = line.trim();
@@ -317,22 +384,24 @@ async function handlePlaylistProxy(request) {
 function handleInfoPage(request) {
   const o = new URL(request.url).origin;
   return new Response(`<!DOCTYPE html><html><body style="font-family:sans-serif;background:#0a0a0b;color:#fff;padding:2rem;max-width:900px;margin:auto">
-  <h1>Stream Extractor v2.4</h1>
+  <h1>Stream Extractor v2.5</h1>
   <p><b>Geil play URL:</b> <code>${o}/manifest.m3u8?url=https://geil.to/live/play/ID</code></p>
   <p><b>Direct stream:</b> <code>${o}/manifest.m3u8?url=http://.../index.m3u8</code></p>
-  <p><b>Debug (vidi zašto 403):</b> <code>${o}/debug?url=&lt;URL&gt;</code></p>
+  <p><b>Debug (testira sve headere):</b> <code>${o}/debug?url=&lt;URL&gt;</code></p>
   <p><a href="${o}/status" style="color:#3b82f6">Status</a></p></body></html>`,
   { headers: { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 function handleStatus(request) {
   return new Response(JSON.stringify({
-    status: "operational", version: "2.4", timestamp: new Date().toISOString(),
+    status: "operational",
+    version: "2.5",
+    timestamp: new Date().toISOString(),
     supported_services: {
       vavoo: { mode: "proxy+resolve" },
       geil_play_url: { mode: "resolve+proxy", path: "/manifest.m3u8?url=https://geil.to/live/play/ID" },
       direct_hls: { mode: "proxy", path: "/manifest.m3u8?url=http://.../index.m3u8" },
-      debug: { path: "/debug?url=<URL>" },
+      debug: { path: "/debug?url=<URL>", description: "Testira resolve + stream s 5 različitih header setova" },
     },
   }, null, 2), { headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
 }
@@ -349,7 +418,7 @@ export default {
       if (url.pathname === '/status') return handleStatus(request);
       if (url.pathname === '/playlist') return await handlePlaylistProxy(request);
 
-      // DEBUG endpoint
+      // SMART DEBUG
       if (url.pathname === '/debug') {
         const u = url.searchParams.get('url');
         if (!u) return new Response('Missing url', { status: 400, headers: CORS_HEADERS });
@@ -361,26 +430,41 @@ export default {
 
       if (url.pathname === '/manifest.m3u8') {
         const targetUrl = url.searchParams.get('url');
-        if (!targetUrl) return new Response(JSON.stringify({ error: 'Missing url param' }), { status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+        if (!targetUrl) {
+          return new Response(JSON.stringify({ error: 'Missing url param' }), {
+            status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+          });
+        }
 
+        // 1. Geil play URL → resolve + proxy
         if (targetUrl.includes('/live/play/')) {
           const streamUrl = await resolveGeilPlayUrl(targetUrl);
-          if (!streamUrl) return new Response(`Geil resolve failed for: ${targetUrl}`, { status: 502, headers: CORS_HEADERS });
+          if (!streamUrl) {
+            return new Response(`Geil resolve failed for: ${targetUrl}`, {
+              status: 502, headers: CORS_HEADERS
+            });
+          }
           return await proxyHLS(streamUrl, request, workerOrigin);
         }
 
+        // 2. Vavoo page → extractor
         if ((targetUrl.includes('vavoo.to') || targetUrl.includes('kool.to')) && !targetUrl.split('?')[0].endsWith('.m3u8')) {
           const ex = new VavooExtractor();
           return await ex.handle(targetUrl, request, workerOrigin);
         }
 
+        // 3. Direct stream / segment / key → proxy
         return await proxyHLS(targetUrl, request, workerOrigin);
       }
 
-      return new Response(JSON.stringify({ error: '404' }), { status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: '404' }), {
+        status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      });
     } catch (e) {
       console.error(e.stack);
-      return new Response(JSON.stringify({ error: e.message, type: e.name, stack: e.stack }), { status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: e.message, type: e.name, stack: e.stack }), {
+        status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
+      });
     }
   },
 };
