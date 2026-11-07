@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Geil.to M3U Generator (bez logotipa)
-Kombinira API logiku iz Enigma2 proxyja i M3U generatora.
+Geil.to M3U Generator (ispravljene rute)
 """
 
 import requests
@@ -15,20 +14,24 @@ from difflib import get_close_matches
 from urllib.parse import quote
 
 # ---------- KONFIGURACIJA ----------
-# Tvoj Cloudflare Worker koji rješava HTTP -> HTTPS problem
 WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
 
 OUTPUT_FILE = "geil_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
 
-# Ciljne grupe
 TARGET_GROUPS = ["Croatia", "Hrvatska"]
 FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Balkan"]
 
-# Geil.to API Rute
-GEIL_CATALOG_URL = "https://geil.to/mediahubmx-catalog.json"
-GEIL_RESOLVE_URL = "https://geil.to/mediahubmx-resolve.json"
+# --- ISPRAVLJENE RUTE ---
+# Umjesto samo https://geil.to/mediahubmx-catalog.json, dodali smo /vto-cluster/
+GEIL_CATALOG_URL = "https://geil.to/vto-cluster/mediahubmx-catalog.json"
+GEIL_RESOLVE_URL = "https://geil.to/vto-cluster/mediahubmx-resolve.json"
+
+# Ako gornje ne radi, isprobaj ovo (obriši # ispred i zakomentiraj gornje):
+# GEIL_CATALOG_URL = "https://geil.to/live2/mediahubmx-catalog.json"
+# GEIL_RESOLVE_URL = "https://geil.to/live2/mediahubmx-resolve.json"
+
 PING_URL = "https://www.vavoo.tv/api/app/ping"
 PING_URL2 = "https://www.vypn.net/api/app/ping"
 
@@ -42,7 +45,6 @@ HEADERS = {
 # -----------------------------------
 
 def get_addon_sig(session):
-    """Dohvaća addonSig token potreban za geil.to."""
     print("🔑 Dohvaćam addonSig token...", file=sys.stderr)
     unique_id = str(uuid.uuid4())
     current_timestamp = int(time.time() * 1000)
@@ -91,13 +93,12 @@ def get_addon_sig(session):
                     print("✅ Token uspješno dohvaćen.", file=sys.stderr)
                     return sig
         except Exception as e:
-            print(f"⚠️ Greška na {url}: {e}", file=sys.stderr)
+            pass
     
     print("❌ Nije moguće dohvatiti token.", file=sys.stderr)
     return None
 
 def resolve_stream_url(channel_url, session, sig):
-    """Pretvara interni geil.to URL u pravi .m3u8 link."""
     if not channel_url:
         return None
         
@@ -126,7 +127,6 @@ def resolve_stream_url(channel_url, session, sig):
     return None
 
 def fetch_channels(session, sig):
-    """Dohvaća kanale s geil.to koristeći katalog API."""
     print("📡 Dohvaćam katalog kanala s geil.to...", file=sys.stderr)
     all_channels = []
     cursor = None
@@ -138,11 +138,11 @@ def fetch_channels(session, sig):
         "user-agent": "MediaHubMX/2"
     }
 
-    while page <= 50: # Sigurnosna granica
+    while page <= 50:
         payload = {
             "language": "hr",
             "region": "HR",
-            "catalogId": "iptv", # KLJUČNO ZA GEIL.TO
+            "catalogId": "iptv", # Enigma2 skripta koristi "iptv"
             "id": "iptv",
             "adult": False,
             "search": "",
@@ -168,7 +168,6 @@ def fetch_channels(session, sig):
                     name = item.get("name", "Unknown")
                     group = item.get("group", "")
                     
-                    # Filtriranje grupa
                     base_country = group
                     for sep in ["➾", "⟾", "->", "→", "»", "›"]:
                         if sep in base_country:
@@ -187,7 +186,7 @@ def fetch_channels(session, sig):
             if not cursor:
                 break
             page += 1
-            time.sleep(0.5) # Mala pauza da ne opteretimo server
+            time.sleep(0.5)
 
         except Exception as e:
             print(f"❌ Greška pri dohvatu kataloga: {e}", file=sys.stderr)
@@ -197,7 +196,6 @@ def fetch_channels(session, sig):
     return all_channels
 
 def fetch_epg_data():
-    """Dohvati i parsiraj EPG XML."""
     try:
         print("📅 Dohvaćam EPG podatke...", file=sys.stderr)
         resp = requests.get(EPG_URL, timeout=15)
@@ -218,7 +216,6 @@ def fetch_epg_data():
         return {}
 
 def get_epg_id(channel_name, epg_data):
-    """Pronađi EPG ID za naziv kanala."""
     if not epg_data or not channel_name:
         return None
     clean_name = re.sub(r"\s*\(.*?\)\s*", "", channel_name).strip()
@@ -234,7 +231,6 @@ def get_epg_id(channel_name, epg_data):
     return None
 
 def build_proxy_url(real_stream_url):
-    """Pretvara pravi HTTP stream u HTTPS preko Cloudflare Workera."""
     if not real_stream_url:
         return ""
     encoded = quote(real_stream_url, safe='')
@@ -244,22 +240,18 @@ def main():
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    # 1. Dohvati Token
     sig = get_addon_sig(session)
     if not sig:
         print("❌ Prekidam rad jer nemam token.", file=sys.stderr)
         sys.exit(1)
 
-    # 2. Dohvati EPG
     epg_data = fetch_epg_data()
 
-    # 3. Dohvati kanale
     channels = fetch_channels(session, sig)
     if not channels:
         print("❌ Nema pronađenih kanala. Prekidam.", file=sys.stderr)
         sys.exit(1)
 
-    # 4. Obradi kanale i generiraj M3U
     lines = ["#EXTM3U"]
     processed_count = 0
 
@@ -267,20 +259,16 @@ def main():
     for ch in channels:
         print(f"   -> {ch['name']}", file=sys.stderr)
         
-        # Resolve pravog linka
         real_url = resolve_stream_url(ch["url"], session, sig)
         if not real_url:
             print(f"      ⚠️ Nije moguće resolveati, preskačem.", file=sys.stderr)
             continue
 
-        # Napravi proxy URL za Cloudflare
         final_url = build_proxy_url(real_url)
         
-        # EPG ID
         epg_id = get_epg_id(ch["name"], epg_data) or ""
         tvg_id = f"{ch['name']}.hr"
 
-        # Formatiranje (bez tvg-logo atributa)
         tvg_id_attr = f' tvg-id="{tvg_id or epg_id}"' if (tvg_id or epg_id) else ' tvg-id=""'
         tvg_name_attr = f' tvg-name="{ch["name"]}"'
         group_attr = f' group-title="{ch["group"]}"'
@@ -291,9 +279,8 @@ def main():
         lines.append(final_url)
         processed_count += 1
         
-        time.sleep(0.2) # Kratka pauza između resolve zahtjeva
+        time.sleep(0.2)
 
-    # 5. Spremi datoteku
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
