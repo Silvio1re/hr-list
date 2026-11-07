@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Geil.to M3U Generator - konačna verzija s otkrivenim API rutama
+Geil.to M3U Generator - v3.0
+- Katalog: GET /live/catalog/live/channels.json
+- Stream: play URL se šalje Workeru, Worker resolva on-demand
+- Prednost: brzo (10s umjesto 3min), svježi tokeni, nema 403
 """
 
 import requests
@@ -19,20 +22,20 @@ PROXY_PATH = "/manifest.m3u8"
 OUTPUT_FILE = "vavoo_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
 
-# Grupe za koje pokušavamo dohvatiti kanale
+# Grupe koje pokušavamo dohvatiti (redom)
 TARGET_GROUPS = ["Croatia", "Hrvatska", "HR", "CRO", "Croatian"]
-FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Balkan", "Regional", "Europe"]
+# Ako želiš SAMO hrvatske kanale, isprazni ovu listu: FALLBACK_GROUPS = []
+FALLBACK_GROUPS = ["Balkans"]
 
 REGION = "US"
 LANGUAGE = "en"
 SORT = "trending"
 
-# --- OTKRIVENE PRAVE RUTE ---
+# Geil.to API rute (otkrivene iz Network taba)
 GEIL_CATALOG_URL = "https://geil.to/live/catalog/live/channels.json"
-GEIL_RESOLVE_URL = "https://geil.to/live/resolve"
 
 HEADERS = {
-    "User-Agent": "MediaHubMX/2",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:153.0) Gecko/20100101 Firefox/153.0",
     "Accept": "*/*",
     "Accept-Language": "en",
     "Accept-Encoding": "gzip, deflate",
@@ -85,25 +88,6 @@ def extract_channel_name(item):
 def extract_channel_group(item, default):
     return item.get("group") or item.get("group_name") or item.get("groupName") or default
 
-def resolve_stream_url(channel_id):
-    """Pretvara ID kanala u pravi .m3u8 link preko GET resolve rute."""
-    params = {
-        "region": REGION,
-        "language": LANGUAGE,
-        "url": f"https://geil.to/live/play/{channel_id}"
-    }
-    try:
-        r = session.get(GEIL_RESOLVE_URL, params=params, timeout=15)
-        if r.status_code == 200:
-            result = r.json()
-            if isinstance(result, dict):
-                return result.get("url") or result.get("stream_url") or result.get("streamUrl")
-            elif isinstance(result, list) and result:
-                return result[0].get("url") or result[0].get("stream_url") or result[0].get("streamUrl")
-    except Exception:
-        pass
-    return None
-
 def fetch_epg_data():
     """Dohvati i parsiraj EPG XML."""
     try:
@@ -140,11 +124,10 @@ def get_epg_id(channel_name, epg_data):
             return epg_data[matches[0]]
     return None
 
-def build_proxy_url(real_stream_url):
-    """Pretvara pravi HTTP stream u HTTPS preko Cloudflare Workera."""
-    if not real_stream_url:
-        return ""
-    encoded = quote(real_stream_url, safe='')
+def build_proxy_url(channel_id):
+    """Gradi URL na Worker koji će sam resolvati play URL u stream."""
+    play_url = f"https://geil.to/live/play/{channel_id}"
+    encoded = quote(play_url, safe='')
     return f"{WORKER_BASE}{PROXY_PATH}?url={encoded}"
 
 def main():
@@ -153,58 +136,60 @@ def main():
     all_channels = []
     groups_with_results = []
 
-    # Isprobavamo redom sve grupe
-    for group in TARGET_GROUPS + FALLBACK_GROUPS:
+    # Prvo probaj ciljne grupe
+    for group in TARGET_GROUPS:
         print(f"📡 Dohvaćam kanale za grupu: {group}...", file=sys.stderr)
         items = fetch_channels_for_group(group)
         if items:
             print(f"   ✅ Pronađeno {len(items)} kanala u grupi '{group}'", file=sys.stderr)
-            # Ispis prvog itema za debug (ako struktura nije očekivana)
-            if len(all_channels) == 0 and items:
-                first = items[0]
-                print(f"   🔍 Debug - ključevi prvog kanala: {list(first.keys())[:15]}", file=sys.stderr)
-
             for item in items:
                 ch_id = extract_channel_id(item)
-                if not ch_id:
-                    continue
-                all_channels.append({
-                    "id": ch_id,
-                    "name": extract_channel_name(item),
-                    "group": extract_channel_group(item, group),
-                })
+                if ch_id:
+                    all_channels.append({
+                        "id": ch_id,
+                        "name": extract_channel_name(item),
+                        "group": extract_channel_group(item, group),
+                    })
             groups_with_results.append(group)
         else:
             print(f"   ⚠️ Nema kanala za '{group}'", file=sys.stderr)
-        time.sleep(0.5)
+        time.sleep(0.3)
+
+    # Ako ništa nije pronađeno, probaj fallback grupe
+    if not all_channels and FALLBACK_GROUPS:
+        print("⚠️ Nema kanala u ciljnim grupama, pokušavam fallback...", file=sys.stderr)
+        for group in FALLBACK_GROUPS:
+            print(f"📡 Dohvaćam kanale za grupu: {group}...", file=sys.stderr)
+            items = fetch_channels_for_group(group)
+            if items:
+                print(f"   ✅ Pronađeno {len(items)} kanala u grupi '{group}'", file=sys.stderr)
+                for item in items:
+                    ch_id = extract_channel_id(item)
+                    if ch_id:
+                        all_channels.append({
+                            "id": ch_id,
+                            "name": extract_channel_name(item),
+                            "group": extract_channel_group(item, group),
+                        })
+                groups_with_results.append(group)
+            time.sleep(0.3)
 
     if not all_channels:
-        print("❌ Nema pronađenih kanala ni u jednoj grupi.", file=sys.stderr)
+        print("❌ Nema pronađenih kanala.", file=sys.stderr)
         sys.exit(1)
 
     # Ukloni duplikate po ID-u
     seen = set()
-    unique_channels = []
-    for ch in all_channels:
-        if ch["id"] not in seen:
-            seen.add(ch["id"])
-            unique_channels.append(ch)
+    unique_channels = [ch for ch in all_channels if not (ch["id"] in seen or seen.add(ch["id"]))]
 
     print(f"\n✅ Ukupno jedinstvenih kanala: {len(unique_channels)}", file=sys.stderr)
-    print(f"   Grupe s rezultatima: {', '.join(groups_with_results)}", file=sys.stderr)
+    print(f"   Grupe: {', '.join(groups_with_results)}", file=sys.stderr)
 
+    # ---- GENERIRANJE M3U ----
+    print("\n📝 Generiram playlistu (Worker će resolvati on-demand)...", file=sys.stderr)
     lines = ["#EXTM3U"]
-    processed = 0
-
-    print("\n⚙️ Resolvam streamove i generiram playlistu...", file=sys.stderr)
     for ch in unique_channels:
-        print(f"   → {ch['name']} ({ch['id']})", file=sys.stderr)
-        real_url = resolve_stream_url(ch["id"])
-        if not real_url:
-            print(f"      ⚠️ Nije moguće resolveati, preskačem.", file=sys.stderr)
-            continue
-
-        final_url = build_proxy_url(real_url)
+        final_url = build_proxy_url(ch["id"])
         epg_id = get_epg_id(ch["name"], epg_data) or ""
         tvg_id = f"{ch['name']}.hr"
 
@@ -212,17 +197,14 @@ def main():
         tvg_name_attr = f' tvg-name="{ch["name"]}"'
         group_attr = f' group-title="{ch["group"]}"'
 
-        extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_name_attr}{group_attr},{ch["name"]}'
-        lines.append(extinf)
+        lines.append(f'#EXTINF:-1{tvg_id_attr}{tvg_name_attr}{group_attr},{ch["name"]}')
         lines.append(final_url)
-        processed += 1
-        time.sleep(0.3)
 
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
-    print(f"\n🎉 Gotovo! Uspješno obrađeno {processed} kanala.", file=sys.stderr)
-    print(f"💾 Playlista spremljena u: {OUTPUT_FILE}", file=sys.stderr)
+    print(f"\n🎉 Gotovo! {len(unique_channels)} kanala u playlisti.", file=sys.stderr)
+    print(f"💾 Spremljeno u: {OUTPUT_FILE}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
