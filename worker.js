@@ -1,14 +1,7 @@
 /**
- * Cloudflare Worker for Vavoo Stream Extraction
- * Version: 2.1 (fixed cache key URL)
- *
- * Features:
- * - Vavoo: Stream extraction with 302 redirect.
- * - M3U playlist proxy for Vavoo links.
- * - Caching of addonSig and resolved stream URLs for better performance.
+ * Cloudflare Worker for Vavoo + Geil Stream Proxy
+ * Version: 2.2
  */
-
-// --- CORS and Utility ---
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -18,10 +11,8 @@ const CORS_HEADERS = {
   'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, Location',
 };
 
-// --- Cache Configuration ---
 const CACHE_NAME = 'vavoo_cache';
-const SIG_TTL = 300; // 5 minutes (adjust as needed)
-const STREAM_URL_TTL = 60; // 1 minute for resolved stream URL (optional)
+const SIG_TTL = 300;
 
 function getClientIP(request) {
   try {
@@ -89,7 +80,91 @@ class ExtractorError extends Error {
   }
 }
 
-// --- Vavoo Extractor Logic ---
+// --- HLS Proxy (NOVO) ---
+
+async function proxyHLS(streamUrl, request, workerOrigin) {
+    const fetchHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://geil.to/',
+        'Origin': 'https://geil.to',
+    };
+
+    // Forward Range header for seeking
+    const range = request.headers.get('Range');
+    if (range) fetchHeaders['Range'] = range;
+
+    let response;
+    try {
+        response = await fetch(streamUrl, { headers: fetchHeaders });
+    } catch (e) {
+        return new Response(`Upstream fetch error: ${e.message}`, {
+            status: 502, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
+        });
+    }
+
+    if (!response.ok) {
+        return new Response(`Upstream returned ${response.status}`, {
+            status: response.status, headers: { ...CORS_HEADERS, 'Content-Type': 'text/plain' }
+        });
+    }
+
+    const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+    const cleanUrl = streamUrl.split('?')[0];
+    const isPlaylist = contentType.includes('mpegurl')
+        || contentType.includes('x-mpegurl')
+        || cleanUrl.endsWith('.m3u8');
+
+    // Binary segment / key / init segment → passthrough
+    if (!isPlaylist) {
+        const headers = { ...CORS_HEADERS };
+        const ct = response.headers.get('Content-Type');
+        if (ct) headers['Content-Type'] = ct;
+        const cr = response.headers.get('Content-Range');
+        if (cr) headers['Content-Range'] = cr;
+        const cl = response.headers.get('Content-Length');
+        if (cl) headers['Content-Length'] = cl;
+        const ar = response.headers.get('Accept-Ranges');
+        if (ar) headers['Accept-Ranges'] = ar;
+
+        return new Response(response.body, { status: response.status, headers });
+    }
+
+    // Parse m3u8 and rewrite all segment URLs through the worker
+    const text = await response.text();
+    const baseUrl = new URL(streamUrl);
+    const lines = text.split('\n');
+
+    const rewritten = lines.map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return line;
+
+        // Handle URI="..." attributes (encryption keys, init segments)
+        if (trimmed.includes('URI="')) {
+            return trimmed.replace(/URI="([^"]*)"/g, (match, uri) => {
+                if (!uri) return match;
+                const absolute = new URL(uri, baseUrl).href;
+                return `URI="${workerOrigin}/manifest.m3u8?url=${encodeURIComponent(absolute)}"`;
+            });
+        }
+
+        // Keep all other comments and tags as-is
+        if (trimmed.startsWith('#')) return line;
+
+        // It's a segment or sub-playlist URL → rewrite
+        const absolute = new URL(trimmed, baseUrl).href;
+        return `${workerOrigin}/manifest.m3u8?url=${encodeURIComponent(absolute)}`;
+    });
+
+    return new Response(rewritten.join('\n'), {
+        headers: {
+            ...CORS_HEADERS,
+            'Content-Type': 'application/vnd.apple.mpegurl; charset=utf-8',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+        },
+    });
+}
+
+// --- Vavoo Extractor (sada proxyja, ne redirecta) ---
 
 const PING_URLS = [
   "https://www.vavoo.tv/api/app/ping",
@@ -142,71 +217,44 @@ function buildPingPayload() {
           app: { platform: "android" },
           version: { package: VYPN_PACKAGE, binary: VYPN_VERSION, js: VYPN_VERSION },
       },
-      appFocusTime: 0,
-      playerActive: false,
-      playDuration: 0,
-      devMode: false,
-      hasAddon: true,
-      castConnected: false,
-      package: VYPN_PACKAGE,
-      version: VYPN_VERSION,
-      process: "app",
-      firstAppStart: ts - 86400000,
-      lastAppStart: ts,
-      ipLocation: null,
-      adblockEnabled: true,
-      migrationApplied: false,
-      migrationTargetInstalled: false,
+      appFocusTime: 0, playerActive: false, playDuration: 0, devMode: false,
+      hasAddon: true, castConnected: false,
+      package: VYPN_PACKAGE, version: VYPN_VERSION, process: "app",
+      firstAppStart: ts - 86400000, lastAppStart: ts, ipLocation: null,
+      adblockEnabled: true, migrationApplied: false, migrationTargetInstalled: false,
       proxy: { supported: ["ss"], engine: "Mu", ssVersion: "2022", enabled: false, autoServer: true, id: "" },
       iap: { supported: false, error: "" },
   });
 }
 
-// --- CACHED VERSION OF fetchAddonSig (with proper URL key) ---
 async function fetchAddonSigWithCache(clientIp) {
-    // If no client IP, we can't cache per IP (fallback to uncached)
-    if (!clientIp) {
-        return fetchAddonSig(clientIp);
-    }
+    if (!clientIp) return fetchAddonSig(clientIp);
 
-    // Build a valid URL for cache key
     const cacheKey = `https://cache.internal/addonSig_${encodeURIComponent(clientIp)}`;
     const cache = caches.default;
 
-    // Try to get from cache
     try {
         const cachedResponse = await cache.match(cacheKey);
         if (cachedResponse) {
-            const sig = await cachedResponse.text();
-            console.log(`[Vavoo] Using cached addonSig for IP ${clientIp}`);
-            return sig;
+            return await cachedResponse.text();
         }
     } catch (e) {
-        console.warn('[Vavoo] Cache read error, proceeding without cache:', e.message);
+        console.warn('[Vavoo] Cache read error:', e.message);
     }
 
-    // Not in cache, fetch fresh
-    console.log(`[Vavoo] Fetching fresh addonSig for IP ${clientIp}`);
     const sig = await fetchAddonSig(clientIp);
-
     if (sig) {
-        // Store in cache with TTL
         try {
-            const response = new Response(sig, {
-                headers: {
-                    'Cache-Control': `s-maxage=${SIG_TTL}, stale-while-revalidate`
-                }
-            });
-            await cache.put(cacheKey, response);
+            await cache.put(cacheKey, new Response(sig, {
+                headers: { 'Cache-Control': `s-maxage=${SIG_TTL}, stale-while-revalidate` }
+            }));
         } catch (e) {
             console.warn('[Vavoo] Failed to cache addonSig:', e.message);
         }
     }
-
     return sig;
 }
 
-// Original fetchAddonSig (unchanged)
 async function fetchAddonSig(clientIp) {
   const pingHeaders = {
       "user-agent": "okhttp/4.11.0",
@@ -216,20 +264,12 @@ async function fetchAddonSig(clientIp) {
   for (const url of PING_URLS) {
       try {
           const resp = await fetch(url, {
-              method: "POST",
-              headers: pingHeaders,
-              body: buildPingPayload(),
+              method: "POST", headers: pingHeaders, body: buildPingPayload(),
           });
-          if (!resp.ok) {
-              console.warn(`[Vavoo] Ping ${url} status ${resp.status}`);
-              continue;
-          }
+          if (!resp.ok) continue;
           const data = await resp.json();
           const sig = data?.addonSig || data?.mhub;
-          if (sig) {
-              return clientIp ? rewriteAddonSigIp(sig, clientIp) : sig;
-          }
-          console.warn(`[Vavoo] No addonSig received from ${url}`);
+          if (sig) return clientIp ? rewriteAddonSigIp(sig, clientIp) : sig;
       } catch (e) {
           console.warn(`[Vavoo] Ping ${url} failed: ${e.message}`);
       }
@@ -249,16 +289,13 @@ class VavooExtractor {
       return url;
   }
 
-  // Use cached version
-  async _fetchAddonSig(clientIp) {
-      return fetchAddonSigWithCache(clientIp);
-  }
-
   async resolveStream(vavooUrl, clientIp) {
       const normalizedUrl = this._normalizeUrl(vavooUrl);
-      let sig = await this._fetchAddonSig(clientIp);
-      if (!sig) console.warn('[Vavoo] No addonSig available, resolving without signature');
-      const resolvePayload = { language: VAVOO_LANGUAGE, region: VAVOO_REGION, url: normalizedUrl, clientVersion: "3.0.2" };
+      let sig = await fetchAddonSigWithCache(clientIp);
+      const resolvePayload = {
+          language: VAVOO_LANGUAGE, region: VAVOO_REGION,
+          url: normalizedUrl, clientVersion: "3.0.2"
+      };
 
       for (let attempt = 0; attempt < 2; attempt++) {
           const resolveHeaders = {
@@ -277,14 +314,13 @@ class VavooExtractor {
               body: JSON.stringify(resolvePayload)
           });
           if (response.status === 451 || response.status === 502) {
-              console.warn(`[Vavoo] Resolve status ${response.status} on base ${BASE_SITES[attempt]}, retrying...`);
               if (attempt === 0) {
-                  const fresh = await this._fetchAddonSig(clientIp);
+                  const fresh = await fetchAddonSigWithCache(clientIp);
                   if (fresh) sig = fresh;
                   continue;
               }
           }
-          if (!response.ok) throw new ExtractorError(`Vavoo Resolve API failed: ${response.status}`);
+          if (!response.ok) throw new ExtractorError(`Resolve API failed: ${response.status}`);
           const result = await response.json();
           let streamUrl;
           if (Array.isArray(result)) {
@@ -293,24 +329,22 @@ class VavooExtractor {
           } else {
               streamUrl = result?.url;
           }
-          if (!streamUrl) throw new ExtractorError('Vavoo resolve response contains no valid stream URL.');
+          if (!streamUrl) throw new ExtractorError('No stream URL in response.');
           return streamUrl;
       }
-      throw new ExtractorError('Vavoo Resolve API failed after retries.');
+      throw new ExtractorError('Resolve API failed after retries.');
   }
 
-  async handle(url, request) {
+  // PROMIJENJENO: sada proxyja direktno umjesto da redirecta na HTTP stream
+  async handle(url, request, workerOrigin) {
       const clientIp = getClientIP(request);
       const streamUrl = await this.resolveStream(url, clientIp);
-      const finalUrl = streamUrl.replace(/^https:\/\//, 'http://');
-      return new Response(null, {
-          status: 302,
-          headers: { ...CORS_HEADERS, 'Location': finalUrl },
-      });
+      const origin = workerOrigin || new URL(request.url).origin;
+      return await proxyHLS(streamUrl, request, origin);
   }
 }
 
-// --- M3U Playlist Proxy (unchanged) ---
+// --- M3U Playlist Proxy (nepromijenjeno) ---
 
 async function handlePlaylistProxy(request) {
   const url = new URL(request.url);
@@ -329,11 +363,10 @@ async function handlePlaylistProxy(request) {
       try {
           const response = await fetch(m3uUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
           if (response.ok) {
-              const text = await response.text();
-              combinedM3U += text + '\n';
+              combinedM3U += await response.text() + '\n';
           }
       } catch (e) {
-          console.error(`Failed to fetch or process playlist ${m3uUrl}: ${e.message}`);
+          console.error(`Failed to fetch ${m3uUrl}: ${e.message}`);
       }
   }
 
@@ -355,9 +388,7 @@ function rewritePlaylistUrls(m3uContent, workerDomain) {
   const processedM3uParts = [];
   let lastExtinf = null;
 
-  if (!lines[0]?.startsWith('#EXTM3U')) {
-      processedM3uParts.push('#EXTM3U');
-  }
+  if (!lines[0]?.startsWith('#EXTM3U')) processedM3uParts.push('#EXTM3U');
 
   for (const line of lines) {
       const trimmedLine = line.trim();
@@ -370,92 +401,41 @@ function rewritePlaylistUrls(m3uContent, workerDomain) {
       } else if (trimmedLine.startsWith('#EXTVLCOPT:')) {
           processedM3uParts.push(trimmedLine);
       } else if (trimmedLine.startsWith('http') && lastExtinf) {
-          if (trimmedLine.includes('vavoo.to')) {
-              processedM3uParts.push(lastExtinf);
-              const newUrl = `${workerDomain}/manifest.m3u8?url=${encodeURIComponent(trimmedLine)}`;
-              processedM3uParts.push(newUrl);
-          } else {
-              // Non-Vavoo URL, leave unchanged
-              processedM3uParts.push(lastExtinf);
-              processedM3uParts.push(trimmedLine);
-          }
+          processedM3uParts.push(lastExtinf);
+          const newUrl = `${workerDomain}/manifest.m3u8?url=${encodeURIComponent(trimmedLine)}`;
+          processedM3uParts.push(newUrl);
           lastExtinf = null;
       }
   }
   return processedM3uParts.join('\n');
 }
 
-// --- Info & Status Pages (unchanged) ---
+// --- Info & Status Pages ---
 
 function handleInfoPage(request) {
   const workerDomain = new URL(request.url).origin;
   const htmlContent = `<!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vavoo Stream Extractor</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Stream Extractor v2.2</title>
   <style>
-      :root {
-          --bg-primary: #0a0a0b; --bg-card: #16181c; --text-primary: #ffffff; --text-secondary: #b3b3b3;
-          --accent-primary: #3b82f6; --accent-green: #10b981; --border-color: #374151;
-          --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      }
-      body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.7; margin: 0; }
-      .container { max-width: 1000px; margin: 0 auto; padding: 2rem; }
-      .header { text-align: center; margin-bottom: 3rem; }
-      .header h1 { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 700; background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; }
-      .version-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--bg-card); border: 1px solid var(--border-color); padding: 0.5rem 1.2rem; border-radius: 2rem; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1rem; }
-      .status-badge { background: var(--accent-green); color: white; padding: 0.2rem 0.6rem; border-radius: 1rem; font-size: 0.8rem; font-weight: 600; }
-      .description { font-size: 1.2rem; color: var(--text-secondary); max-width: 700px; margin: 0 auto 2rem; }
-      .cards-grid { display: grid; gap: 2rem; margin: 3rem 0; }
-      .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 1.5rem; padding: 2rem; transition: all 0.3s ease; }
-      .card:hover { transform: translateY(-8px); border-color: var(--accent-primary); }
-      .card-title { font-size: 1.4rem; font-weight: 600; margin-bottom: 1rem; }
-      .card-description { color: var(--text-secondary); margin-bottom: 1.5rem; }
-      .endpoint-code { background: #1a1a1d; border: 1px solid var(--border-color); border-radius: 0.8rem; padding: 1rem; font-family: 'SF Mono', monospace; font-size: 0.9rem; color: var(--accent-primary); word-break: break-all; }
-      .footer { text-align: center; margin-top: 4rem; padding: 2rem 0; border-top: 1px solid var(--border-color); color: #6b7280; }
-      .warning { color: #f59e0b; font-weight: 500; }
+    body { font-family: -apple-system, sans-serif; background: #0a0a0b; color: #fff; padding: 2rem; max-width: 900px; margin: auto; }
+    h1 { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .card { background: #16181c; border: 1px solid #374151; border-radius: 1rem; padding: 1.5rem; margin: 1rem 0; }
+    code { background: #1a1a1d; padding: 0.3rem 0.6rem; border-radius: 0.3rem; color: #3b82f6; word-break: break-all; }
   </style>
 </head>
 <body>
-  <div class="container">
-      <header class="header">
-          <h1>Vavoo Stream Extractor</h1>
-          <div class="version-badge">
-              <span>v2.1</span>
-              <span class="status-badge">ONLINE</span>
-          </div>
-          <p class="description">
-              Vavoo stream extraction with automatic authentication, direct redirect, and intelligent caching.
-          </p>
-      </header>
-      <div class="cards-grid">
-          <div class="card">
-              <h3 class="card-title">Stream Extraction</h3>
-              <p class="card-description">
-                  Provide a Vavoo URL to get a direct redirect (302) to the final stream.<br>
-                  <span class="warning">Note:</span> If streams do not start, disable IPv6 on your connection.
-              </p>
-              <div class="endpoint-code">${workerDomain}/manifest.m3u8?url=&lt;VAVOO_URL&gt;</div>
-          </div>
-          <div class="card">
-              <h3 class="card-title">M3U Playlist Proxy</h3>
-              <p class="card-description">
-                  Provide one or more M3U playlists (separated by ';'). The worker will merge them and rewrite Vavoo channels.
-              </p>
-              <div class="endpoint-code">${workerDomain}/playlist?url=&lt;URL1&gt;;&lt;URL2&gt;</div>
-          </div>
-          <div class="card">
-              <h3 class="card-title">Debug &amp; Status</h3>
-              <p class="card-description">View information about your connection and worker status.</p>
-              <div class="endpoint-code">${workerDomain}/status</div>
-          </div>
-      </div>
-      <footer class="footer">
-          <p>&copy; 2025 Vavoo Extractor</p>
-      </footer>
+  <h1>Stream Extractor v2.2</h1>
+  <div class="card">
+    <h3>HLS Proxy (univerzalno)</h3>
+    <p>Proxira bilo koji HLS stream (vavoo, geil, ili direktni stream URL). Prepisuje sve segmente kroz Worker.</p>
+    <code>${workerDomain}/manifest.m3u8?url=&lt;STREAM_URL&gt;</code>
+  </div>
+  <div class="card">
+    <h3>Status</h3>
+    <code>${workerDomain}/status</code>
   </div>
 </body>
 </html>`;
@@ -466,7 +446,7 @@ function handleStatus(request) {
   const clientIP = getClientIP(request);
   const statusInfo = {
       status: "operational",
-      version: "2.1",
+      version: "2.2",
       timestamp: new Date().toISOString(),
       client_info: {
           ip: clientIP,
@@ -475,7 +455,9 @@ function handleStatus(request) {
           is_ipv6: clientIP ? clientIP.includes(':') : false,
       },
       supported_services: {
-          vavoo: { mode: "redirect", path: "/manifest.m3u8?url=https://vavoo.to/..." },
+          vavoo: { mode: "proxy", path: "/manifest.m3u8?url=https://vavoo.to/..." },
+          geil:  { mode: "proxy", path: "/manifest.m3u8?url=<resolved_stream_url>" },
+          direct_hls: { mode: "proxy", path: "/manifest.m3u8?url=http://.../index.m3u8" },
       },
       endpoints: {
           info: new URL(request.url).origin + '/',
@@ -497,7 +479,6 @@ export default {
       const url = new URL(request.url);
 
       try {
-          // --- ROUTING ---
           if (url.pathname === '/' || url.pathname === '') {
               return handleInfoPage(request);
           }
@@ -508,62 +489,38 @@ export default {
               return await handlePlaylistProxy(request);
           }
           if (url.pathname === '/manifest.m3u8') {
-              if (url.searchParams.has('url')) {
-                  const targetUrl = url.searchParams.get('url');
-
-                  if (targetUrl.includes('vavoo.to')) {
-                      const extractor = new VavooExtractor();
-                      return await extractor.handle(targetUrl, request);
-                  }
-
-                  return new Response(JSON.stringify({ error: 'Unsupported URL. Only Vavoo URLs are supported.' }), {
-                      status: 400,
-                      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+              if (!url.searchParams.has('url')) {
+                  return new Response(JSON.stringify({ error: 'Missing "url" parameter' }), {
+                      status: 400, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
                   });
               }
 
-              return new Response(JSON.stringify({ error: 'Missing "url" parameter' }), {
-                  status: 400,
-                  headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-              });
-          }
+              const targetUrl = url.searchParams.get('url');
+              const workerOrigin = url.origin;
 
-          if (url.pathname === '/proxy/hls/manifest.m3u8' || url.pathname === '/extractor/video') {
-              const targetUrl = url.searchParams.get('d');
-              // api_password is explicitly ignored
+              // Detect what kind of URL this is
+              const cleanUrl = targetUrl.split('?')[0];
+              const isStreamUrl = cleanUrl.endsWith('.m3u8') || cleanUrl.endsWith('.ts') || targetUrl.includes('/hls/');
+              const isVavooPage = (targetUrl.includes('vavoo.to') || targetUrl.includes('geil.to') || targetUrl.includes('kool.to')) && !isStreamUrl;
 
-              if (targetUrl) {
-                  if (targetUrl.includes('vavoo.to')) {
-                      const extractor = new VavooExtractor();
-                      return await extractor.handle(targetUrl, request);
-                  }
-                  return new Response(JSON.stringify({ error: 'Unsupported URL. Only Vavoo URLs are supported in parameter "d".' }), {
-                      status: 400,
-                      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-                  });
+              // 1. Vavoo/Geil page URL → use extractor (which now proxies, not redirects)
+              if (isVavooPage) {
+                  const extractor = new VavooExtractor();
+                  return await extractor.handle(targetUrl, request, workerOrigin);
               }
 
-              return new Response(JSON.stringify({ error: 'Missing "d" parameter' }), {
-                  status: 400,
-                  headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-              });
+              // 2. Any other URL (already-resolved stream, direct m3u8, segment) → proxy
+              return await proxyHLS(targetUrl, request, workerOrigin);
           }
 
-          // --- 404 Not Found ---
           return new Response(JSON.stringify({ error: '404 Not Found' }), {
-              status: 404,
-              headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+              status: 404, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
           });
 
       } catch (error) {
           console.error(`Worker Error: ${error.stack}`);
-          const errorResponse = {
-              error: error.message,
-              type: error.name,
-          };
-          return new Response(JSON.stringify(errorResponse), {
-              status: 500,
-              headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+          return new Response(JSON.stringify({ error: error.message, type: error.name }), {
+              status: 500, headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' }
           });
       }
   },
