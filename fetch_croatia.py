@@ -16,7 +16,7 @@ from urllib.parse import quote
 WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
 
-OUTPUT_FILE = "geil_croatia.m3u"
+OUTPUT_FILE = "vavoo_croatia.m3u"
 EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
 
 # Grupe za koje pokušavamo dohvatiti kanale
