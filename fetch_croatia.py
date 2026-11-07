@@ -1,153 +1,205 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Fetch Vavoo channels directly from Vavoo catalog API.
-Generates M3U playlist with EPG IDs and logos (from GitHub).
+Geil.to M3U Generator (bez logotipa)
+Kombinira API logiku iz Enigma2 proxyja i M3U generatora.
 """
 
 import requests
-import json
 import sys
 import re
+import time
+import uuid
 import xml.etree.ElementTree as ET
 from difflib import get_close_matches
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import quote
 
-# ---------- Konfiguracija ----------
+# ---------- KONFIGURACIJA ----------
+# Tvoj Cloudflare Worker koji rješava HTTP -> HTTPS problem
 WORKER_BASE = "https://hr-list.hallgrunt.workers.dev"
 PROXY_PATH = "/manifest.m3u8"
-OUTPUT_FILE = "vavoo_croatia.m3u"
-EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
-LOGOS_URL = "https://raw.githubusercontent.com/Silvio1re/hr-list/main/logos.json"
 
-TARGET_GROUPS = ["Croatia"]
-FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Hrvatska", "Balkan"]
+OUTPUT_FILE = "geil_croatia.m3u"
+EPG_URL = "https://iptv-epg.org/files/epg-hr.xml"
+
+# Ciljne grupe
+TARGET_GROUPS = ["Croatia", "Hrvatska"]
+FALLBACK_GROUPS = ["Balkans", "Ex-YU", "Balkan"]
+
+# Geil.to API Rute
+GEIL_CATALOG_URL = "https://geil.to/mediahubmx-catalog.json"
+GEIL_RESOLVE_URL = "https://geil.to/mediahubmx-resolve.json"
+PING_URL = "https://www.vavoo.tv/api/app/ping"
+PING_URL2 = "https://www.vypn.net/api/app/ping"
 
 HEADERS = {
     "User-Agent": "MediaHubMX/2",
-    "Accept": "application/json",
-    "Content-Type": "application/json; charset=utf-8",
+    "Accept": "*/*",
+    "Accept-Language": "hr",
+    "Accept-Encoding": "gzip, deflate"
 }
 
 # -----------------------------------
 
-def normalize_key(key):
-    """
-    Normalizira ključ za pretraživanje:
-    - ukloni sufiks (.hr, .rs, .si, .ba, .me, .mk, .al, itd.)
-    - ukloni oznake kvalitete (HD, FHD, Hevc, 4k, itd.)
-    - ukloni sve razmake
-    - pretvori u mala slova
-    """
-    if not key:
-        return key
-    # Ukloni .hr, .rs, .si, itd. na kraju (2-3 slova)
-    cleaned = re.sub(r'\.(hr|rs|si|ba|me|mk|al|it|de|at|ch|hu|ro|bg|gr|tr|ru|pl|cz|sk|fr|es|pt|nl|be|no|se|dk|fi|ie|gb|us|ca|au|nz|za|il|sa|ae|in|cn|jp|kr|tw|hk|sg|my|id|ph|th|vn|pk|bd|eg|ma|tn|dz|ng|ke|gh|za|br|ar|cl|co|pe|mx|uy|py|bo|ec|ve|pa|cr|gt|hn|sv|ni|do|pr|jm|tt|bb|bs|bm|ky|vg|tc|ai|ag|gd|kn|lc|vc|dm|ms|mp|gu|as|pw|fm|mh|vu|sb|fj|to|ws|pg|tl|kh|la|mm|np|lk|mv|bt|mn|kg|uz|tm|az|ge|am|ir|iq|sy|lb|jo|kw|qa|bh|om|ye|ps)$', '', key, flags=re.IGNORECASE)
-    # Ukloni oznake kvalitete
-    cleaned = re.sub(r'\s*(hd|fhd|uhd|hevc|4k|fullhd|1080p|720p)\s*', '', cleaned, flags=re.IGNORECASE)
-    # Ukloni sve razmake i pretvori u mala slova, ali zadrži slova i brojke (zamijeni ostalo sa -)
-    cleaned = re.sub(r'[^a-z0-9]', '-', cleaned.lower())
-    # Ukloni višestruke crtice
-    cleaned = re.sub(r'-+', '-', cleaned)
-    # Ukloni crtice s krajeva
-    return cleaned.strip('-')
+def get_addon_sig(session):
+    """Dohvaća addonSig token potreban za geil.to."""
+    print("🔑 Dohvaćam addonSig token...", file=sys.stderr)
+    unique_id = str(uuid.uuid4())
+    current_timestamp = int(time.time() * 1000)
 
-def fetch_groups():
-    """Dohvati dostupne grupe s Vavoo-a."""
-    for url in ["https://www2.vavoo.to/live2/index?output=json", "https://www.vavoo.to/live2/index?output=json"]:
+    payload = {
+        "token": "",
+        "reason": "app-focus",
+        "locale": "hr",
+        "theme": "dark",
+        "metadata": {
+            "device": {"type": "phone", "uniqueId": unique_id},
+            "os": {"name": "android", "version": "14", "abis": ["arm64-v8a"], "host": "android"},
+            "app": {"platform": "android"},
+            "version": {"package": "net.vypn.app", "binary": "1.4.1", "js": "1.4.1"}
+        },
+        "appFocusTime": 0,
+        "playerActive": False,
+        "playDuration": 0,
+        "devMode": False,
+        "hasAddon": True,
+        "castConnected": False,
+        "package": "net.vypn.app",
+        "version": "1.4.1",
+        "process": "app",
+        "firstAppStart": current_timestamp - 86400000,
+        "lastAppStart": current_timestamp,
+        "ipLocation": None,
+        "adblockEnabled": True,
+        "proxy": {"supported": ["ss"], "engine": "Mu", "ssVersion": "2022", "enabled": False, "autoServer": True, "id": ""},
+        "iap": {"supported": False, "error": ""}
+    }
+
+    headers = {
+        "user-agent": "okhttp/4.11.0",
+        "accept": "application/json",
+        "content-type": "application/json; charset=utf-8",
+    }
+
+    for url in [PING_URL, PING_URL2]:
         try:
-            resp = requests.get(url, timeout=20)
-            if resp.status_code == 200:
-                data = resp.json()
-                groups = list(set([c.get("group") for c in data if c.get("group")]))
-                return sorted(groups)
-        except:
-            continue
-    return []
+            r = session.post(url, json=payload, headers=headers, timeout=15)
+            if r.status_code == 200:
+                data = r.json()
+                sig = data.get("addonSig") or data.get("mhub")
+                if sig:
+                    print("✅ Token uspješno dohvaćen.", file=sys.stderr)
+                    return sig
+        except Exception as e:
+            print(f"⚠️ Greška na {url}: {e}", file=sys.stderr)
+    
+    print("❌ Nije moguće dohvatiti token.", file=sys.stderr)
+    return None
 
+def resolve_stream_url(channel_url, session, sig):
+    """Pretvara interni geil.to URL u pravi .m3u8 link."""
+    if not channel_url:
+        return None
+        
+    headers = {
+        "content-type": "application/json; charset=utf-8",
+        "mediahubmx-signature": sig,
+        "user-agent": "MediaHubMX/2"
+    }
+    payload = {
+        "language": "hr", 
+        "region": "HR",
+        "url": channel_url,
+        "clientVersion": "3.0.2"
+    }
+    
+    try:
+        r = session.post(GEIL_RESOLVE_URL, json=payload, headers=headers, timeout=15)
+        if r.status_code == 200:
+            result = r.json()
+            if isinstance(result, list) and result:
+                return result[0].get("url")
+            elif isinstance(result, dict):
+                return result.get("url")
+    except Exception:
+        pass
+    return None
 
-def fetch_channels_for_group(group, session):
-    """Dohvati sve kanale za zadanu grupu (uz paginaciju)."""
-    channels = []
-    cursor = 0
+def fetch_channels(session, sig):
+    """Dohvaća kanale s geil.to koristeći katalog API."""
+    print("📡 Dohvaćam katalog kanala s geil.to...", file=sys.stderr)
+    all_channels = []
+    cursor = None
+    page = 1
 
-    while True:
+    headers = {
+        "content-type": "application/json; charset=utf-8",
+        "mediahubmx-signature": sig,
+        "user-agent": "MediaHubMX/2"
+    }
+
+    while page <= 50: # Sigurnosna granica
         payload = {
-            "language": "de",
-            "region": "DE",
-            "catalogId": "vto-iptv",
-            "id": "vto-iptv",
+            "language": "hr",
+            "region": "HR",
+            "catalogId": "iptv", # KLJUČNO ZA GEIL.TO
+            "id": "iptv",
             "adult": False,
             "search": "",
             "sort": "name",
-            "filter": {"group": group},
+            "filter": {},
             "cursor": cursor,
             "clientVersion": "3.0.2"
         }
 
         try:
-            resp = session.post(
-                "https://vavoo.to/vto-cluster/mediahubmx-catalog.json",
-                data=json.dumps(payload),
-                timeout=30,
-                headers={"Referer": "https://vavoo.tv"}
-            )
-
-            if resp.status_code != 200:
+            r = session.post(GEIL_CATALOG_URL, json=payload, headers=headers, timeout=30)
+            if r.status_code != 200:
+                print(f"⚠️ Greška pri dohvatu stranice {page}: HTTP {r.status_code}", file=sys.stderr)
                 break
 
-            data = resp.json()
+            data = r.json()
             items = data.get("items", [])
             if not items:
                 break
 
             for item in items:
-                name = item.get("name", "Unknown")
-                clean_name = re.sub(r"\s*\.\w+$", "", name).strip()
-                url = item.get("url", "")
-
-                stream_id = extract_stream_id(url)
-                if stream_id:
-                    channels.append({
-                        "name": clean_name,
-                        "id": stream_id,
-                        "url": url,
-                        "logo": item.get("logo", ""),
-                        "group": group,
-                        "tvg_id": f"{clean_name}.hr"
-                    })
+                if item.get("type") == "iptv":
+                    name = item.get("name", "Unknown")
+                    group = item.get("group", "")
+                    
+                    # Filtriranje grupa
+                    base_country = group
+                    for sep in ["➾", "⟾", "->", "→", "»", "›"]:
+                        if sep in base_country:
+                            base_country = base_country.split(sep)[0].strip()
+                            break
+                    
+                    if base_country in TARGET_GROUPS or base_country in FALLBACK_GROUPS:
+                        clean_name = re.sub(r"\s*\.\w+$", "", name).strip()
+                        all_channels.append({
+                            "name": clean_name,
+                            "url": item.get("url", ""),
+                            "group": base_country
+                        })
 
             cursor = data.get("nextCursor")
             if not cursor:
                 break
+            page += 1
+            time.sleep(0.5) # Mala pauza da ne opteretimo server
 
         except Exception as e:
-            print(f"  Greška: {e}", file=sys.stderr)
+            print(f"❌ Greška pri dohvatu kataloga: {e}", file=sys.stderr)
             break
 
-    return channels
-
-
-def extract_stream_id(url):
-    """Izvadi stream ID iz Vavoo URL-a."""
-    if not url:
-        return None
-
-    parsed = urlparse(url)
-    query_params = parse_qs(parsed.query)
-    if 'stream' in query_params:
-        return query_params['stream'][0]
-
-    match = re.search(r'/live/([^/]+)', parsed.path)
-    if match:
-        return match.group(1)
-
-    return url.split('/')[-1].split('.')[0]
-
+    print(f"✅ Pronađeno {len(all_channels)} ciljanih kanala.", file=sys.stderr)
+    return all_channels
 
 def fetch_epg_data():
-    """Dohvati i parsiraj EPG XML s iptv-epg.org."""
+    """Dohvati i parsiraj EPG XML."""
     try:
+        print("📅 Dohvaćam EPG podatke...", file=sys.stderr)
         resp = requests.get(EPG_URL, timeout=15)
         resp.raise_for_status()
         root = ET.fromstring(resp.content)
@@ -159,35 +211,11 @@ def fetch_epg_data():
                 name = display_name.text.strip()
                 epg_channels[name] = chan_id
                 epg_channels[name.lower()] = chan_id
-                no_space = re.sub(r"\s+", "", name)
-                if no_space != name:
-                    epg_channels[no_space] = chan_id
-                    epg_channels[no_space.lower()] = chan_id
-        print(f"Učitano {len(epg_channels)} EPG mapiranja.", file=sys.stderr)
+        print(f"✅ Učitano {len(epg_channels)} EPG mapiranja.", file=sys.stderr)
         return epg_channels
     except Exception as e:
-        print(f"Greška pri dohvaćanju EPG-a: {e}", file=sys.stderr)
+        print(f"❌ Greška pri dohvaćanju EPG-a: {e}", file=sys.stderr)
         return {}
-
-
-def fetch_logos_from_github():
-    """Dohvati logotipe direktno s GitHub-a (main grana) i normaliziraj ključeve."""
-    try:
-        resp = requests.get(LOGOS_URL, timeout=15)
-        resp.raise_for_status()
-        raw = resp.json()
-        normalized = {}
-        for key, value in raw.items():
-            normalized[key] = value  # zadrži originalni ključ
-            norm_key = normalize_key(key)
-            if norm_key and norm_key not in normalized:
-                normalized[norm_key] = value
-        print(f"✅ Učitano {len(normalized)} logotipa s GitHub-a.", file=sys.stderr)
-        return normalized
-    except Exception as e:
-        print(f"❌ Greška pri dohvaćanju logotipa s GitHub-a: {e}", file=sys.stderr)
-        return {}
-
 
 def get_epg_id(channel_name, epg_data):
     """Pronađi EPG ID za naziv kanala."""
@@ -199,126 +227,78 @@ def get_epg_id(channel_name, epg_data):
     name_lower = clean_name.lower()
     if name_lower in epg_data:
         return epg_data[name_lower]
-    no_space = re.sub(r"\s+", "", clean_name)
-    if no_space in epg_data:
-        return epg_data[no_space]
-    if no_space.lower() in epg_data:
-        return epg_data[no_space.lower()]
     if len(name_lower) >= 3:
         matches = get_close_matches(name_lower, epg_data.keys(), n=1, cutoff=0.7)
         if matches:
             return epg_data[matches[0]]
     return None
 
-
-def get_logo_url(tvg_id, channel_name, vavoo_logo, logo_map):
-    """
-    Dohvati URL logotipa.
-    Prioritet: Normalizirani tvg-id → Normalizirani naziv kanala → Vavoo logo
-    """
-    # 1. Probaj po tvg-id (normaliziranom)
-    if tvg_id:
-        norm_tvg = normalize_key(tvg_id)
-        if norm_tvg in logo_map:
-            return logo_map[norm_tvg]
-        # Probaj i originalni tvg-id (ako je točan)
-        if tvg_id in logo_map:
-            return logo_map[tvg_id]
-    
-    # 2. Probaj po nazivu kanala (normaliziranom)
-    if channel_name:
-        norm_name = normalize_key(channel_name)
-        if norm_name in logo_map:
-            return logo_map[norm_name]
-        if channel_name in logo_map:
-            return logo_map[channel_name]
-    
-    # 3. Vavoo logo (preskoči logo.huhu.to)
-    if vavoo_logo and "logo.huhu.to" not in vavoo_logo:
-        return vavoo_logo
-    
-    return ""
-
-
-def build_proxy_url(stream_id):
-    """Izgradi proxy URL s tvojim Cloudflare Workerom."""
-    return f"{WORKER_BASE}{PROXY_PATH}?url=https://vavoo.to/vavoo-iptv/play/{stream_id}"
-
-
-def generate_m3u(channels, epg_data, logo_map, group_name):
-    """Generiraj M3U sadržaj s EPG ID-ovima i logotipima."""
-    lines = ["#EXTM3U"]
-    for ch in channels:
-        name = ch["name"]
-        stream_id = ch["id"]
-        tvg_id = ch.get("tvg_id", "")
-        vavoo_logo = ch.get("logo", "")
-
-        epg_id = get_epg_id(name, epg_data) or ""
-        logo_url = get_logo_url(tvg_id, name, vavoo_logo, logo_map) or ""
-        stream_url = build_proxy_url(stream_id)
-
-        tvg_id_attr = f' tvg-id="{tvg_id or epg_id}"' if (tvg_id or epg_id) else ' tvg-id=""'
-        tvg_logo_attr = f' tvg-logo="{logo_url}"' if logo_url else ' tvg-logo=""'
-        tvg_name_attr = f' tvg-name="{name}"'
-        group_attr = f' group-title="{group_name}"'
-
-        extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_name_attr}{tvg_logo_attr}{group_attr},{name}'
-
-        lines.append(extinf)
-        lines.append(stream_url)
-
-    return "\n".join(lines)
-
+def build_proxy_url(real_stream_url):
+    """Pretvara pravi HTTP stream u HTTPS preko Cloudflare Workera."""
+    if not real_stream_url:
+        return ""
+    encoded = quote(real_stream_url, safe='')
+    return f"{WORKER_BASE}{PROXY_PATH}?url={encoded}"
 
 def main():
-    print("Dohvaćanje grupa s Vavoo-a...", file=sys.stderr)
-    groups = fetch_groups()
-    if not groups:
-        print("Nema dostupnih grupa.", file=sys.stderr)
-        sys.exit(1)
-
-    print(f"Dostupne grupe: {groups}", file=sys.stderr)
-
-    target_groups = [g for g in groups if g in TARGET_GROUPS]
-    if not target_groups:
-        print("Grupa 'Croatia' nije pronađena, tražim zamjenske...", file=sys.stderr)
-        target_groups = [g for g in groups if g in FALLBACK_GROUPS]
-
-    if not target_groups:
-        print("Nema odgovarajuće grupe.", file=sys.stderr)
-        sys.exit(1)
-
-    print("Dohvaćanje EPG podataka...", file=sys.stderr)
-    epg_data = fetch_epg_data()
-
-    print("Dohvaćanje logotipa s GitHub-a...", file=sys.stderr)
-    logo_map = fetch_logos_from_github()
-
     session = requests.Session()
     session.headers.update(HEADERS)
 
-    all_channels = []
-    for group in target_groups:
-        print(f"Dohvaćanje kanala za grupu: {group}...", file=sys.stderr)
-        channels = fetch_channels_for_group(group, session)
-        print(f"  Pronađeno {len(channels)} kanala.", file=sys.stderr)
-        all_channels.extend(channels)
-
-    if not all_channels:
-        print("Nema kanala.", file=sys.stderr)
+    # 1. Dohvati Token
+    sig = get_addon_sig(session)
+    if not sig:
+        print("❌ Prekidam rad jer nemam token.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Ukupno kanala: {len(all_channels)}", file=sys.stderr)
+    # 2. Dohvati EPG
+    epg_data = fetch_epg_data()
 
-    group_name = target_groups[0]
-    m3u_content = generate_m3u(all_channels, epg_data, logo_map, group_name)
+    # 3. Dohvati kanale
+    channels = fetch_channels(session, sig)
+    if not channels:
+        print("❌ Nema pronađenih kanala. Prekidam.", file=sys.stderr)
+        sys.exit(1)
 
+    # 4. Obradi kanale i generiraj M3U
+    lines = ["#EXTM3U"]
+    processed_count = 0
+
+    print("⚙️ Resolvam streamove i generiram playlistu...", file=sys.stderr)
+    for ch in channels:
+        print(f"   -> {ch['name']}", file=sys.stderr)
+        
+        # Resolve pravog linka
+        real_url = resolve_stream_url(ch["url"], session, sig)
+        if not real_url:
+            print(f"      ⚠️ Nije moguće resolveati, preskačem.", file=sys.stderr)
+            continue
+
+        # Napravi proxy URL za Cloudflare
+        final_url = build_proxy_url(real_url)
+        
+        # EPG ID
+        epg_id = get_epg_id(ch["name"], epg_data) or ""
+        tvg_id = f"{ch['name']}.hr"
+
+        # Formatiranje (bez tvg-logo atributa)
+        tvg_id_attr = f' tvg-id="{tvg_id or epg_id}"' if (tvg_id or epg_id) else ' tvg-id=""'
+        tvg_name_attr = f' tvg-name="{ch["name"]}"'
+        group_attr = f' group-title="{ch["group"]}"'
+
+        extinf = f'#EXTINF:-1{tvg_id_attr}{tvg_name_attr}{group_attr},{ch["name"]}'
+        
+        lines.append(extinf)
+        lines.append(final_url)
+        processed_count += 1
+        
+        time.sleep(0.2) # Kratka pauza između resolve zahtjeva
+
+    # 5. Spremi datoteku
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
-        f.write(m3u_content)
+        f.write("\n".join(lines))
 
-    print(f"Playlista spremljena u {OUTPUT_FILE}", file=sys.stderr)
-
+    print(f"\n🎉 Gotovo! Uspješno obrađeno {processed_count} kanala.", file=sys.stderr)
+    print(f"💾 Playlista spremljena u: {OUTPUT_FILE}", file=sys.stderr)
 
 if __name__ == "__main__":
     main()
